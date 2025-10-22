@@ -1,4 +1,9 @@
 import fetch from "node-fetch";
+
+/**
+ * Crawl Product Hunt for trending software
+ * Returns list of products with metadata
+ */
 export async function crawlProductHunt(limit = 10) {
   const query = `
     query {
@@ -28,11 +33,12 @@ export async function crawlProductHunt(limit = 10) {
     }
   `;
 
+  // --- Make API call ---
   const response = await fetch("https://api.producthunt.com/v2/api/graphql", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-  
+      // 👇 This reads your secret key from Vercel Environment Variables
       "Authorization": `Bearer ${process.env.PRODUCTHUNT_API_KEY}`
     },
     body: JSON.stringify({ query })
@@ -42,6 +48,7 @@ export async function crawlProductHunt(limit = 10) {
     throw new Error(`Product Hunt API failed: ${response.statusText}`);
   }
 
+  // --- Format data ---
   const data = await response.json();
   const posts = data.data.posts.edges.map(({ node }) => ({
     name: node.name,
@@ -58,3 +65,13 @@ export async function crawlProductHunt(limit = 10) {
   return posts;
 }
 
+// Optional test runner — this lets you test it manually
+if (import.meta.url === `file://${process.argv[1]}`) {
+  crawlProductHunt()
+    .then((data) => {
+      console.log(JSON.stringify(data, null, 2));
+    })
+    .catch((error) => {
+      console.error("Error running Product Hunt crawler:", error.message);
+    });
+}
