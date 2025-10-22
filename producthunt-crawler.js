@@ -1,9 +1,4 @@
 import fetch from "node-fetch";
-
-/**
- * Crawl Product Hunt for trending software
- * Returns list of products with metadata
- */
 export async function crawlProductHunt(limit = 10) {
   const query = `
     query {
@@ -37,7 +32,8 @@ export async function crawlProductHunt(limit = 10) {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      "Authorization": "Bearer YOUR_PRODUCT_HUNT_TOKEN"
+  
+      "Authorization": `Bearer ${process.env.PRODUCTHUNT_API_KEY}`
     },
     body: JSON.stringify({ query })
   });
@@ -61,3 +57,4 @@ export async function crawlProductHunt(limit = 10) {
 
   return posts;
 }
+
