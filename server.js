@@ -2,6 +2,7 @@ import express from 'express';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { crawlAppSumo } from './appsumo-crawler.js';
+import { crawlProductHunt } from './producthunt-crawler.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -230,6 +231,17 @@ app.post('/api/recrawl', async (req, res) => {
 });
 
 // Serve the HTML interface
+// New endpoint for Product Hunt data
+app.get('/api/producthunt', async (req, res) => {
+    try {
+        const data = await crawlProductHunt(10); // fetch top 10 posts
+        res.json({ success: true, count: data.length, results: data });
+    } catch (error) {
+        console.error('Error in Product Hunt crawl:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
