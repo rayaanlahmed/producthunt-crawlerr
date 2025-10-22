@@ -1,0 +1,736 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AppSumo Crawler</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 30px;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+
+        .card {
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            margin-bottom: 20px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: #333;
+        }
+
+        .category-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        .category-tag {
+            background: #f0f0f0;
+            padding: 10px 15px;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-align: center;
+            border: 2px solid transparent;
+        }
+
+        .category-tag:hover {
+            background: #e0e0e0;
+        }
+
+        .category-tag.selected {
+            background: #667eea;
+            color: white;
+            border-color: #5568d3;
+        }
+
+        input[type="number"], select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 6px;
+            font-size: 1rem;
+            transition: border-color 0.3s;
+        }
+
+        input[type="number"]:focus, select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .btn {
+            background: #667eea;
+            color: white;
+            padding: 15px 30px;
+            border: none;
+            border-radius: 6px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            cursor: pointer;
+            width: 100%;
+            transition: background 0.3s;
+        }
+
+        .btn:hover {
+            background: #5568d3;
+        }
+
+        .btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 20px;
+        }
+
+        .loading.active {
+            display: block;
+        }
+
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 15px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .results {
+            display: none;
+        }
+
+        .results.active {
+            display: block;
+        }
+
+        .result-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #e0e0e0;
+        }
+
+        .result-count {
+            font-size: 1.3rem;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .download-btn {
+            background: #28a745;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+        }
+
+        .download-btn:hover {
+            background: #218838;
+        }
+
+        .product-card {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 15px;
+            border-left: 4px solid #667eea;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .product-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+
+        .product-title {
+            font-size: 1.4rem;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 10px;
+        }
+
+        .product-url {
+            color: #667eea;
+            text-decoration: none;
+            font-size: 0.9rem;
+            display: inline-block;
+            margin-bottom: 10px;
+        }
+
+        .product-url:hover {
+            text-decoration: underline;
+        }
+
+        .product-meta {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            margin: 15px 0;
+            font-size: 0.95rem;
+        }
+
+        .meta-item {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .meta-item strong {
+            color: #667eea;
+        }
+
+        .product-categories {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin: 10px 0;
+        }
+
+        .category-badge {
+            background: #667eea;
+            color: white;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 0.85rem;
+        }
+
+        .product-description {
+            color: #666;
+            line-height: 1.6;
+            margin-top: 10px;
+        }
+
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 15px;
+            border-radius: 6px;
+            margin-bottom: 15px;
+            border-left: 4px solid #f5c6cb;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🚀 AppSumo Product Crawler</h1>
+            <p>Find interesting products based on categories</p>
+        </div>
+
+        <div class="card">
+            <form id="crawlForm">
+                <div class="form-group">
+                    <label>Select Category:</label>
+                    <div class="category-grid" id="categoryGrid">
+                        <div class="category-tag" data-category="Operations">Operations</div>
+                        <div class="category-tag" data-category="Marketing & sales">Marketing & sales</div>
+                        <div class="category-tag" data-category="Build it yourself">Build it yourself</div>
+                        <div class="category-tag" data-category="Media tools">Media tools</div>
+                        <div class="category-tag" data-category="Finance">Finance</div>
+                        <div class="category-tag" data-category="Development & IT">Development & IT</div>
+                        <div class="category-tag" data-category="Customer experience">Customer experience</div>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="maxPages">Maximum Products to Scrape:</label>
+                    <input type="number" id="maxPages" name="maxPages" value="30" min="1" max="100">
+                </div>
+
+                <div class="form-group">
+                    <label for="sortBy">Sort By:</label>
+                    <select id="sortBy" name="sortBy">
+                        <option value="">Default</option>
+                        <option value="recommended">Recommended</option>
+                        <option value="rating">Highest Rating</option>
+                        <option value="latest">Latest Deals</option>
+                        <option value="review_count">Most Reviews</option>
+                        <option value="popularity">Most Popular</option>
+                        <option value="newest">Newest First</option>
+                        <option value="price_low">Price: Low to High</option>
+                        <option value="price_high">Price: High to Low</option>
+                    </select>
+                </div>
+
+                <button type="submit" class="btn" id="crawlBtn">Start Crawling</button>
+            </form>
+        </div>
+
+        <div class="loading" id="loading">
+            <div class="card">
+                <div class="spinner"></div>
+                <p id="loadingText" style="text-align: center; font-size: 1.1rem; color: #666; margin-bottom: 20px;">Crawling AppSumo... This may take a few minutes.</p>
+
+                <!-- Progress Bar -->
+                <div style="width: 100%; background: #e0e0e0; border-radius: 10px; height: 30px; overflow: hidden; margin-bottom: 15px;">
+                    <div id="progressBar" style="width: 0%; height: 100%; background: linear-gradient(90deg, #667eea 0%, #764ba2 100%); transition: width 0.3s ease; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 0.9rem;">
+                        0%
+                    </div>
+                </div>
+
+                <p id="progressDetails" style="text-align: center; color: #888; font-size: 0.9rem;"></p>
+            </div>
+        </div>
+
+        <div class="results" id="results">
+            <div class="card">
+                <div class="result-header">
+                    <div class="result-count" id="resultCount">Found 0 products</div>
+                    <div>
+                        <button class="download-btn" id="restartBtn" style="background: #dc3545; margin-right: 10px;">New Search</button>
+                        <button class="download-btn" id="downloadJsonBtn" style="margin-right: 10px;">Download JSON</button>
+                        <button class="download-btn" id="downloadMdBtn" style="background: #17a2b8;">Download Markdown</button>
+                    </div>
+                </div>
+                <div id="productList"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const categoryGrid = document.getElementById('categoryGrid');
+        const crawlForm = document.getElementById('crawlForm');
+        const loading = document.getElementById('loading');
+        const results = document.getElementById('results');
+        const productList = document.getElementById('productList');
+        const resultCount = document.getElementById('resultCount');
+        const downloadJsonBtn = document.getElementById('downloadJsonBtn');
+        const downloadMdBtn = document.getElementById('downloadMdBtn');
+        const restartBtn = document.getElementById('restartBtn');
+        const crawlBtn = document.getElementById('crawlBtn');
+
+        let selectedCategories = [];
+        let currentProducts = [];
+        let rateLimitedProducts = [];
+
+        // Category selection
+        categoryGrid.addEventListener('click', (e) => {
+            if (e.target.classList.contains('category-tag')) {
+                e.target.classList.toggle('selected');
+                const category = e.target.dataset.category;
+
+                if (selectedCategories.includes(category)) {
+                    selectedCategories = selectedCategories.filter(c => c !== category);
+                } else {
+                    selectedCategories.push(category);
+                }
+            }
+        });
+
+        // Form submission with Server-Sent Events for progressive results
+        crawlForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const maxPages = parseInt(document.getElementById('maxPages').value);
+            const sortBy = document.getElementById('sortBy').value || null;
+
+            // Show loading, hide results
+            loading.classList.add('active');
+            results.classList.remove('active');
+            crawlBtn.disabled = true;
+
+            // Reset current data
+            currentProducts = [];
+            rateLimitedProducts = [];
+
+            try {
+                const response = await fetch('/api/crawl', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        categories: selectedCategories,
+                        maxPages: maxPages,
+                        sortBy: sortBy
+                    })
+                });
+
+                // Handle Server-Sent Events
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder();
+                let buffer = '';
+
+                while (true) {
+                    const { value, done } = await reader.read();
+                    if (done) break;
+
+                    buffer += decoder.decode(value, { stream: true });
+                    const lines = buffer.split('\n');
+
+                    // Process complete lines
+                    for (let i = 0; i < lines.length - 1; i++) {
+                        const line = lines[i];
+                        if (line.startsWith('data: ')) {
+                            const jsonData = JSON.parse(line.slice(6));
+
+                            if (jsonData.type === 'progress') {
+                                // Update progress bar for sub-batches
+                                const progressBar = document.getElementById('progressBar');
+                                const loadingText = document.getElementById('loadingText');
+                                const progressDetails = document.getElementById('progressDetails');
+
+                                // Calculate overall progress: (completed super-batches + current mini-batch progress) / total super-batches
+                                const completedSuperBatches = jsonData.superBatchNumber - 1;
+                                const currentSuperBatchProgress = jsonData.miniBatchNumber / jsonData.totalMiniBatches;
+                                const totalProgress = Math.round(((completedSuperBatches + currentSuperBatchProgress) / jsonData.totalSuperBatches) * 100);
+
+                                if (progressBar) {
+                                    progressBar.style.width = `${totalProgress}%`;
+                                    progressBar.textContent = `${totalProgress}%`;
+                                }
+
+                                if (loadingText) {
+                                    loadingText.textContent = `Super-Batch ${jsonData.superBatchNumber}/${jsonData.totalSuperBatches} - Scraping...`;
+                                }
+
+                                if (progressDetails) {
+                                    progressDetails.textContent = `Mini-batch ${jsonData.miniBatchNumber}/${jsonData.totalMiniBatches}: ${jsonData.productsScraped}/${jsonData.totalInSuperBatch} products scraped in this batch`;
+                                }
+                            } else if (jsonData.type === 'batch') {
+                                // Update with new batch results
+                                currentProducts = [...currentProducts, ...jsonData.products];
+                                rateLimitedProducts = [...rateLimitedProducts, ...jsonData.rateLimited];
+
+                                // Show results immediately
+                                results.classList.add('active');
+                                displayResults(currentProducts, rateLimitedProducts);
+
+                                // Calculate progress percentage
+                                const progress = Math.round((jsonData.batchNumber / jsonData.totalBatches) * 100);
+
+                                // Update progress bar
+                                const progressBar = document.getElementById('progressBar');
+                                const loadingText = document.getElementById('loadingText');
+                                const progressDetails = document.getElementById('progressDetails');
+
+                                if (progressBar) {
+                                    progressBar.style.width = `${progress}%`;
+                                    progressBar.textContent = `${progress}%`;
+                                }
+
+                                if (loadingText) {
+                                    loadingText.textContent = `Batch ${jsonData.batchNumber}/${jsonData.totalBatches} complete! 🎉`;
+                                }
+
+                                if (progressDetails) {
+                                    const failedCount = jsonData.totalRateLimited;
+                                    progressDetails.textContent = `✓ ${jsonData.totalProducts} products scraped successfully${failedCount > 0 ? ` | ⚠️ ${failedCount} failed/rate-limited` : ''}. ${jsonData.batchNumber < jsonData.totalBatches ? 'Next batch starting soon...' : 'Almost done!'}`;
+                                }
+                            } else if (jsonData.type === 'complete') {
+                                // Final results
+                                currentProducts = jsonData.products;
+                                rateLimitedProducts = jsonData.rateLimited;
+                                displayResults(currentProducts, rateLimitedProducts);
+                            } else if (jsonData.type === 'error') {
+                                throw new Error(jsonData.error);
+                            }
+                        }
+                    }
+
+                    // Keep incomplete line in buffer
+                    buffer = lines[lines.length - 1];
+                }
+
+            } catch (error) {
+                productList.innerHTML = `<div class="error">Error: ${error.message}</div>`;
+                results.classList.add('active');
+            } finally {
+                loading.classList.remove('active');
+                crawlBtn.disabled = false;
+            }
+        });
+
+        // Display results
+        function displayResults(products, rateLimited = []) {
+            resultCount.textContent = `Found ${products.length} product${products.length !== 1 ? 's' : ''}`;
+
+            let html = '';
+
+            // Show rate-limited warning if any
+            if (rateLimited && rateLimited.length > 0) {
+                html += `
+                    <div style="background: #fff3cd; border: 2px solid #ffc107; border-radius: 8px; padding: 20px; margin-bottom: 20px;">
+                        <h3 style="margin: 0 0 10px 0; color: #856404;">⚠️ ${rateLimited.length} Product(s) Rate Limited</h3>
+                        <p style="margin: 0 0 15px 0; color: #856404;">The following products couldn't be scraped due to rate limiting:</p>
+                        <ul style="margin: 0 0 15px 0; color: #856404;">
+                            ${rateLimited.map(item => `<li>${item.name}</li>`).join('')}
+                        </ul>
+                        <button id="retryBtn" class="download-btn" style="background: #ffc107; color: #000;">
+                            Retry in 60 seconds
+                        </button>
+                        <p style="margin: 10px 0 0 0; font-size: 0.9rem; color: #856404;">
+                            <em>Note: This will wait 60 seconds before retrying to avoid further rate limiting.</em>
+                        </p>
+                    </div>
+                `;
+            }
+
+            if (products.length === 0) {
+                html += '<p style="text-align: center; color: #666; padding: 20px;">No products found matching your criteria.</p>';
+            } else {
+                html += products.map(product => `
+                    <div class="product-card">
+                        <div class="product-title">${escapeHtml(product.name)}</div>
+                        <a href="${escapeHtml(product.url)}" target="_blank" class="product-url">${escapeHtml(product.url)}</a>
+
+                        ${product.summary ? `
+                            <div class="product-description" style="margin-top: 10px; margin-bottom: 10px;"><strong>Summary:</strong> ${escapeHtml(product.summary)}</div>
+                        ` : ''}
+
+                        <div class="product-meta">
+                            ${product.rating ? `<div class="meta-item"><strong>Rating:</strong> ${product.rating}/5 ⭐</div>` : ''}
+                            ${product.reviews ? `<div class="meta-item"><strong>Reviews:</strong> ${product.reviews}</div>` : ''}
+                            ${product.pricing?.lifetime ? `<div class="meta-item"><strong>Lifetime Price:</strong> ${escapeHtml(product.pricing.lifetime)}</div>` : ''}
+                            ${product.foundingDate ? `<div class="meta-item"><strong>Founded:</strong> ${escapeHtml(product.foundingDate)}</div>` : ''}
+                        </div>
+
+                        ${product.homepage ? `
+                            <div style="margin: 10px 0;">
+                                <strong>Homepage:</strong> <a href="${escapeHtml(product.homepage)}" target="_blank" style="color: #667eea;">${escapeHtml(product.homepage)}</a>
+                            </div>
+                        ` : ''}
+
+                        ${product.founder || product.founderLinkedIn || product.founderAppSumoProfile ? `
+                            <div style="margin: 10px 0;">
+                                <strong>Founder:</strong> ${escapeHtml(product.founder || 'N/A')}
+                                ${product.founderLinkedIn ? ` - <a href="${escapeHtml(product.founderLinkedIn)}" target="_blank" style="color: #0077B5;">LinkedIn</a>` : ''}
+                                ${product.founderAppSumoProfile ? ` - <a href="${escapeHtml(product.founderAppSumoProfile)}" target="_blank" style="color: #667eea;">AppSumo Profile</a>` : ''}
+                            </div>
+                        ` : ''}
+
+                        ${product.pricing && product.pricing.tiers && product.pricing.tiers.length > 0 ? `
+                            <div style="margin: 10px 0;">
+                                <strong>Pricing Tiers:</strong> ${product.pricing.tiers.map(t => `Tier ${t.tier}: ${escapeHtml(t.price)}`).join(', ')}
+                            </div>
+                        ` : ''}
+
+                        ${product.categories && product.categories.length > 0 ? `
+                            <div class="product-categories">
+                                ${product.categories.map(cat => `<span class="category-badge">${escapeHtml(cat)}</span>`).join('')}
+                            </div>
+                        ` : ''}
+                    </div>
+                `).join('');
+            }
+
+            productList.innerHTML = html;
+            results.classList.add('active');
+
+            // Add retry button listener if there are rate-limited products
+            if (rateLimited && rateLimited.length > 0) {
+                const retryBtn = document.getElementById('retryBtn');
+                if (retryBtn) {
+                    retryBtn.addEventListener('click', async () => {
+                        retryBtn.disabled = true;
+                        retryBtn.textContent = 'Waiting 60 seconds...';
+
+                        try {
+                            const urls = rateLimited.map(item => item.url);
+
+                            const response = await fetch('/api/retry', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ urls })
+                            });
+
+                            const data = await response.json();
+
+                            if (data.error) {
+                                throw new Error(data.error);
+                            }
+
+                            // Merge retried products with existing ones
+                            currentProducts = [...currentProducts, ...data.products];
+                            rateLimitedProducts = [];
+
+                            // Re-display with merged results
+                            displayResults(currentProducts, []);
+                            resultCount.textContent = `Found ${currentProducts.length} product${currentProducts.length !== 1 ? 's' : ''}`;
+
+                        } catch (error) {
+                            alert('Retry failed: ' + error.message);
+                            retryBtn.disabled = false;
+                            retryBtn.textContent = 'Retry in 60 seconds';
+                        }
+                    });
+                }
+            }
+        }
+
+        // Restart button - reset everything
+        restartBtn.addEventListener('click', () => {
+            // Clear results
+            results.classList.remove('active');
+            currentProducts = [];
+
+            // Clear selected categories
+            selectedCategories = [];
+            document.querySelectorAll('.category-tag.selected').forEach(tag => {
+                tag.classList.remove('selected');
+            });
+
+            // Reset form
+            document.getElementById('maxPages').value = 30;
+
+            // Scroll to top
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        });
+
+        // Download JSON
+        downloadJsonBtn.addEventListener('click', () => {
+            const dataStr = JSON.stringify(currentProducts, null, 2);
+            const dataBlob = new Blob([dataStr], { type: 'application/json' });
+            const url = URL.createObjectURL(dataBlob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `appsumo_products_${new Date().toISOString().split('T')[0]}.json`;
+            link.click();
+            URL.revokeObjectURL(url);
+        });
+
+        // Download Markdown
+        downloadMdBtn.addEventListener('click', () => {
+            const markdown = generateMarkdown(currentProducts);
+            const dataBlob = new Blob([markdown], { type: 'text/markdown' });
+            const url = URL.createObjectURL(dataBlob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `appsumo_products_${new Date().toISOString().split('T')[0]}.md`;
+            link.click();
+            URL.revokeObjectURL(url);
+        });
+
+        // Generate Markdown format
+        function generateMarkdown(products) {
+            let md = `# AppSumo Product Results\n\n`;
+            md += `**Date:** ${new Date().toLocaleDateString()}\n`;
+            md += `**Total Products:** ${products.length}\n\n`;
+            md += `---\n\n`;
+
+            products.forEach((product, index) => {
+                md += `## ${index + 1}. ${product.name}\n\n`;
+                md += `**AppSumo URL:** [${product.url}](${product.url})\n\n`;
+
+                if (product.summary) {
+                    md += `**Summary:** ${product.summary}\n\n`;
+                }
+
+                if (product.homepage) {
+                    md += `**Homepage:** [${product.homepage}](${product.homepage})\n\n`;
+                }
+
+                const metaItems = [];
+                if (product.rating) metaItems.push(`**Rating:** ${product.rating}/5 ⭐`);
+                if (product.reviews) metaItems.push(`**Reviews:** ${product.reviews}`);
+
+                if (metaItems.length > 0) {
+                    md += metaItems.join(' | ') + '\n\n';
+                }
+
+                if (product.pricing?.lifetime) {
+                    md += `**Lifetime Price:** ${product.pricing.lifetime}`;
+                    if (product.pricing.regular) {
+                        md += ` (Regular: ${product.pricing.regular})`;
+                    }
+                    md += '\n\n';
+                }
+
+                if (product.pricing?.tiers && product.pricing.tiers.length > 0) {
+                    md += `**Pricing Tiers:**\n`;
+                    product.pricing.tiers.forEach(tier => {
+                        md += `- Tier ${tier.tier}: ${tier.price}\n`;
+                    });
+                    md += '\n';
+                }
+
+                if (product.founder || product.founderLinkedIn || product.founderAppSumoProfile) {
+                    md += `**Founder:** ${product.founder || 'N/A'}`;
+                    if (product.founderLinkedIn) {
+                        md += ` ([LinkedIn](${product.founderLinkedIn}))`;
+                    }
+                    if (product.founderAppSumoProfile) {
+                        md += ` ([AppSumo Profile](${product.founderAppSumoProfile}))`;
+                    }
+                    md += '\n\n';
+                }
+
+                if (product.foundingDate) {
+                    md += `**Founded:** ${product.foundingDate}\n\n`;
+                }
+
+                if (product.categories && product.categories.length > 0) {
+                    md += `**Categories:** ${product.categories.map(c => '`' + c + '`').join(' ')}\n\n`;
+                }
+
+                md += `---\n\n`;
+            });
+
+            md += `*Generated by AppSumo Crawler*\n`;
+            return md;
+        }
+
+        // Helper function to escape HTML
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+    </script>
+</body>
+</html>
