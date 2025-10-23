@@ -1,4 +1,5 @@
 import fetch from "node-fetch";
+import { evaluateProducts } from "./evaluation-engine.js";
 
 /**
  * Crawl Product Hunt for trending software
