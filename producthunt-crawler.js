@@ -1,14 +1,13 @@
 import fetch from "node-fetch";
 
 /**
- * Crawl Product Hunt for trending software (optionally filter by topic keyword)
+ * Crawl Product Hunt for trending software by topic
  */
 export async function crawlProductHunt(limit = 10, topic = null) {
-  // Product Hunt GraphQL API doesn’t support topic filters directly,
-  // so we’ll fetch the top posts, then filter them manually by keyword.
+  // Fetch more posts so we have more to filter from
   const query = `
     query {
-      posts(order: RANKING, first: ${limit * 3}) {
+      posts(order: RANKING, first: 100) {
         edges {
           node {
             name
@@ -44,23 +43,24 @@ export async function crawlProductHunt(limit = 10, topic = null) {
     body: JSON.stringify({ query })
   });
 
-  if (!response.ok) {
-    throw new Error(`Product Hunt API failed: ${response.statusText}`);
-  }
+  if (!response.ok) throw new Error(`Product Hunt API failed: ${response.statusText}`);
 
   const data = await response.json();
   const posts = data?.data?.posts?.edges || [];
 
-  // --- Filter by topic keyword if user selected one ---
+  // Fuzzy match for topic (so “Health” matches “Healthcare”, etc.)
   const filtered = topic
-    ? posts.filter(({ node }) =>
-        node.topics.edges.some(t =>
-          t.node.name.toLowerCase().includes(topic.toLowerCase())
-        )
-      )
+    ? posts.filter(({ node }) => {
+        const allTopics = node.topics.edges.map(t => t.node.name.toLowerCase());
+        const topicLower = topic.toLowerCase();
+        return allTopics.some(t =>
+          t.includes(topicLower) ||
+          topicLower.includes(t)
+        );
+      })
     : posts;
 
-  // --- Format data ---
+  // Format clean results
   const formatted = filtered.slice(0, limit).map(({ node }) => ({
     name: node.name,
     tagline: node.tagline,
@@ -73,13 +73,12 @@ export async function crawlProductHunt(limit = 10, topic = null) {
     launchDate: node.createdAt
   }));
 
-  console.log(`✅ Found ${formatted.length} matching posts${topic ? ` for topic "${topic}"` : ""}.`);
+  console.log(`✅ Found ${formatted.length} posts for topic "${topic || 'All'}"`);
   return formatted;
 }
 
-// Manual test mode
+// Optional test runner
 if (import.meta.url === `file://${process.argv[1]}`) {
-  crawlProductHunt(10, "Artificial Intelligence")
-    .then(data => console.log(JSON.stringify(data, null, 2)))
-    .catch(err => console.error(err));
+  crawlProductHunt(10, "AI").then(console.log).catch(console.error);
 }
+
