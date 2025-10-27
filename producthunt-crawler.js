@@ -1,19 +1,18 @@
 import fetch from "node-fetch";
-import { evaluateProducts } from "./evaluation-engine.js";
 
 /**
- * Crawl Product Hunt for trending software
- * Optionally filter by topic/category
+ * Crawl Product Hunt for trending software by topic (if provided)
+ * Returns list of products with metadata
  */
 export async function crawlProductHunt(limit = 10, topic = null) {
-  // --- Build GraphQL query dynamically ---
+  // Choose query depending on whether topic is selected
   const topicFilter = topic
-    ? `(order: RANKING, first: ${limit}, filters: {topics: ["${topic}"]})`
-    : `(order: RANKING, first: ${limit})`;
+    ? `posts(order: RANKING, first: ${limit}, where: { topics: { name: "${topic}" } })`
+    : `posts(order: RANKING, first: ${limit})`;
 
   const query = `
     query {
-      posts${topicFilter} {
+      ${topicFilter} {
         edges {
           node {
             name
@@ -53,9 +52,17 @@ export async function crawlProductHunt(limit = 10, topic = null) {
     throw new Error(`Product Hunt API failed: ${response.statusText}`);
   }
 
-  // --- Format data ---
   const data = await response.json();
-  const posts = data.data.posts.edges.map(({ node }) => ({
+
+  //  Defensive check: make sure posts exist
+  const posts = data?.data?.posts?.edges;
+  if (!posts) {
+    console.warn("No posts found in Product Hunt API response:", data);
+    return [];
+  }
+
+  // --- Format data ---
+  const formatted = posts.map(({ node }) => ({
     name: node.name,
     tagline: node.tagline,
     votes: node.votesCount,
@@ -67,17 +74,12 @@ export async function crawlProductHunt(limit = 10, topic = null) {
     launchDate: node.createdAt
   }));
 
-  // Optional evaluation hook (if you want to rank/filter later)
-  if (typeof evaluateProducts === "function") {
-    return evaluateProducts(posts);
-  }
-
-  return posts;
+  return formatted;
 }
 
-// Optional test runner — lets you run it manually
+// Optional test runner — this lets you test it manually
 if (import.meta.url === `file://${process.argv[1]}`) {
-  crawlProductHunt(10, "Artificial Intelligence")
+  crawlProductHunt()
     .then((data) => {
       console.log(JSON.stringify(data, null, 2));
     })
