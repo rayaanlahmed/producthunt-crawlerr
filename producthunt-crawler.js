@@ -1,47 +1,65 @@
 import fetch from "node-fetch";
 
 /**
- * Crawl Product Hunt for trending software by topic
+ * Crawl Product Hunt for trending products, optionally by topic
  * @param {number} limit - Number of posts to fetch
- * @param {string|null} topic - Optional topic name (e.g. "AI Tools")
+ * @param {string|null} topic - Optional topic filter (ex: "Artificial Intelligence")
  */
 export async function crawlProductHunt(limit = 10, topic = null) {
-  // Build filter
-  const topicFilter = topic
-    ? `(topics: { slug: "${topic.toLowerCase().replace(/\s+/g, "-")}" })`
-    : "";
+  // Normalize topic to match Product Hunt's slugs
+  const topicSlug = topic
+    ? topic.toLowerCase().replace(/&/g, "and").replace(/\s+/g, "-")
+    : null;
 
-  // GraphQL query
-  const query = `
-    query {
-      posts(order: RANKING, first: ${limit}, ${topic ? `after: null` : ""}) {
-        edges {
-          node {
-            name
-            tagline
-            votesCount
-            website
-            topics {
-              edges {
-                node {
-                  name
-                  slug
+  // Build query
+  const query = topicSlug
+    ? `
+      query {
+        topic(slug: "${topicSlug}") {
+          name
+          posts(first: ${limit}) {
+            edges {
+              node {
+                name
+                tagline
+                votesCount
+                website
+                url
+                description
+                createdAt
+                thumbnail { url }
+                topics {
+                  edges { node { name slug } }
                 }
               }
             }
-            description
-            createdAt
-            thumbnail {
-              url
-            }
-            url
           }
         }
       }
-    }
-  `;
+    `
+    : `
+      query {
+        posts(order: RANKING, first: ${limit}) {
+          edges {
+            node {
+              name
+              tagline
+              votesCount
+              website
+              url
+              description
+              createdAt
+              thumbnail { url }
+              topics {
+                edges { node { name slug } }
+              }
+            }
+          }
+        }
+      }
+    `;
 
-  // API call
+  // Fetch data from Product Hunt API
   const response = await fetch("https://api.producthunt.com/v2/api/graphql", {
     method: "POST",
     headers: {
@@ -57,13 +75,20 @@ export async function crawlProductHunt(limit = 10, topic = null) {
 
   const data = await response.json();
 
-  // Defensive check to avoid "undefined posts" errors
-  if (!data.data || !data.data.posts) {
-    console.log("⚠️ No posts found for topic:", topic);
+  let posts = [];
+
+  // Handle both cases — with topic or general trending
+  if (topicSlug && data.data.topic) {
+    posts = data.data.topic.posts.edges.map(({ node }) => node);
+  } else if (data.data.posts) {
+    posts = data.data.posts.edges.map(({ node }) => node);
+  } else {
+    console.log("⚠️ No posts found for topic:", topicSlug);
     return [];
   }
 
-  const posts = data.data.posts.edges.map(({ node }) => ({
+  // Format data for frontend
+  const formatted = posts.map((node) => ({
     name: node.name,
     tagline: node.tagline,
     votes: node.votesCount,
@@ -75,11 +100,16 @@ export async function crawlProductHunt(limit = 10, topic = null) {
     launchDate: node.createdAt,
   }));
 
-  console.log(`✅ Found ${posts.length} posts for topic: ${topic || "Trending"}`);
-  return posts;
+  console.log(
+    `✅ Found ${formatted.length} posts for topic: ${topicSlug || "Trending"}`
+  );
+
+  return formatted;
 }
 
-// Optional test
+// Optional: test manually
 if (import.meta.url === `file://${process.argv[1]}`) {
-  crawlProductHunt(10, "AI Tools").then(console.log).catch(console.error);
+  crawlProductHunt(10, "Artificial Intelligence")
+    .then((data) => console.log(JSON.stringify(data, null, 2)))
+    .catch((err) => console.error(err));
 }
