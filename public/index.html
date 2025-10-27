@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AppSumo Crawler</title>
+    <title>Product Hunt Crawler</title>
     <style>
         * {
             margin: 0;
@@ -268,26 +268,30 @@
 <body>
     <div class="container">
         <div class="header">
-            <h1>🚀 AppSumo Product Crawler</h1>
-            <p>Find interesting products based on categories</p>
+            <h1>🚀 Product Hunt Crawler</h1>
+            <p>Discover trending startups and AI tools by topic</p>
         </div>
 
-        <div class="card">
-            <form id="crawlForm">
-                <div class="form-group">
-                    <label>Select Category:</label>
-                    <div class="category-grid" id="categoryGrid">
-                        <div class="category-tag" data-category="Operations">Operations</div>
-                        <div class="category-tag" data-category="Marketing & sales">Marketing & sales</div>
-                        <div class="category-tag" data-category="Build it yourself">Build it yourself</div>
-                        <div class="category-tag" data-category="Media tools">Media tools</div>
-                        <div class="category-tag" data-category="Finance">Finance</div>
-                        <div class="category-tag" data-category="Development & IT">Development & IT</div>
-                        <div class="category-tag" data-category="Customer experience">Customer experience</div>
-                    </div>
-                </div>
+       <div class="card">
+    <form id="crawlForm">
+        <div class="form-group">
+            <label>Select Category:</label>
+            <div class="category-grid" id="categoryGrid">
+                <div class="category-tag" data-category="Artificial Intelligence">Artificial Intelligence</div>
+                <div class="category-tag" data-category="Productivity">Productivity</div>
+                <div class="category-tag" data-category="Developer Tools">Developer Tools</div>
+                <div class="category-tag" data-category="Design Tools">Design Tools</div>
+                <div class="category-tag" data-category="Marketing">Marketing</div>
+                <div class="category-tag" data-category="Finance">Finance</div>
+                <div class="category-tag" data-category="Education">Education</div>
+                <div class="category-tag" data-category="Health & Fitness">Health & Fitness</div>
+                <div class="category-tag" data-category="Web3">Web3</div>
+                <div class="category-tag" data-category="Startups">Startups</div>
+            </div>
+        </div>
 
-                <div class="form-group">
+
+                <div class="form-group"> 
                     <label for="maxPages">Maximum Products to Scrape:</label>
                     <input type="number" id="maxPages" name="maxPages" value="30" min="1" max="100">
                 </div>
@@ -323,7 +327,8 @@
         <div class="loading" id="loading">
             <div class="card">
                 <div class="spinner"></div>
-                <p id="loadingText" style="text-align: center; font-size: 1.1rem; color: #666; margin-bottom: 20px;">Crawling AppSumo... This may take a few minutes.</p>
+                <p id="loadingText" style="text-align: center; font-size: 1.1rem; color: #666; margin-bottom: 20px;">🚀 Crawling Product Hunt... This may take a few minutes.</p>
+
 
                 <!-- Progress Bar -->
                 <div style="width: 100%; background: #e0e0e0; border-radius: 10px; height: 30px; overflow: hidden; margin-bottom: 15px;">
@@ -739,7 +744,7 @@
 
         // Generate Markdown format
         function generateMarkdown(products) {
-            let md = `# AppSumo Product Results\n\n`;
+            let md = `# Product hunt Results\n\n`;
             md += `**Date:** ${new Date().toLocaleDateString()}\n`;
             md += `**Total Products:** ${products.length}\n\n`;
             md += `---\n\n`;
