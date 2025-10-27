@@ -16,17 +16,20 @@ app.use(express.static('public'));
 // API endpoint for crawling Product Hunt
 app.post('/api/crawl', async (req, res) => {
     try {
-        const { limit = 10 } = req.body;
+        // Extract category and limit from frontend
+        const { limit = 10, categories = [] } = req.body;
+        const topic = categories.length > 0 ? categories[0] : null;
 
-        // Setup Server-Sent Events
+        // Setup Server-Sent Events (SSE)
         res.setHeader('Content-Type', 'text/event-stream');
         res.setHeader('Cache-Control', 'no-cache');
         res.setHeader('Connection', 'keep-alive');
 
-        console.log('Starting Product Hunt crawl...');
+        console.log(`Starting Product Hunt crawl... Topic: ${topic || 'Trending'}`);
 
         try {
-            const products = await crawlProductHunt(limit);
+            // Pass topic to the crawler (you’ll handle this in producthunt-crawler.js)
+            const products = await crawlProductHunt(limit, topic);
 
             res.write(`data: ${JSON.stringify({
                 type: 'complete',
@@ -63,7 +66,7 @@ app.get('/api/producthunt', async (req, res) => {
     }
 });
 
-// Serve frontend
+//  Serve frontend
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
