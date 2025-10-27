@@ -1,18 +1,14 @@
 import fetch from "node-fetch";
 
 /**
- * Crawl Product Hunt for trending software by topic (if provided)
- * Returns list of products with metadata
+ * Crawl Product Hunt for trending software (optionally filter by topic keyword)
  */
 export async function crawlProductHunt(limit = 10, topic = null) {
-  // Choose query depending on whether topic is selected
-  const topicFilter = topic
-    ? `posts(order: RANKING, first: ${limit}, where: { topics: { name: "${topic}" } })`
-    : `posts(order: RANKING, first: ${limit})`;
-
+  // Product Hunt GraphQL API doesn’t support topic filters directly,
+  // so we’ll fetch the top posts, then filter them manually by keyword.
   const query = `
     query {
-      ${topicFilter} {
+      posts(order: RANKING, first: ${limit * 3}) {
         edges {
           node {
             name
@@ -53,16 +49,19 @@ export async function crawlProductHunt(limit = 10, topic = null) {
   }
 
   const data = await response.json();
+  const posts = data?.data?.posts?.edges || [];
 
-  //  Defensive check: make sure posts exist
-  const posts = data?.data?.posts?.edges;
-  if (!posts) {
-    console.warn("No posts found in Product Hunt API response:", data);
-    return [];
-  }
+  // --- Filter by topic keyword if user selected one ---
+  const filtered = topic
+    ? posts.filter(({ node }) =>
+        node.topics.edges.some(t =>
+          t.node.name.toLowerCase().includes(topic.toLowerCase())
+        )
+      )
+    : posts;
 
   // --- Format data ---
-  const formatted = posts.map(({ node }) => ({
+  const formatted = filtered.slice(0, limit).map(({ node }) => ({
     name: node.name,
     tagline: node.tagline,
     votes: node.votesCount,
@@ -74,16 +73,13 @@ export async function crawlProductHunt(limit = 10, topic = null) {
     launchDate: node.createdAt
   }));
 
+  console.log(`✅ Found ${formatted.length} matching posts${topic ? ` for topic "${topic}"` : ""}.`);
   return formatted;
 }
 
-// Optional test runner — this lets you test it manually
+// Manual test mode
 if (import.meta.url === `file://${process.argv[1]}`) {
-  crawlProductHunt()
-    .then((data) => {
-      console.log(JSON.stringify(data, null, 2));
-    })
-    .catch((error) => {
-      console.error("Error running Product Hunt crawler:", error.message);
-    });
+  crawlProductHunt(10, "Artificial Intelligence")
+    .then(data => console.log(JSON.stringify(data, null, 2)))
+    .catch(err => console.error(err));
 }
