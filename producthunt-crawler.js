@@ -2,12 +2,19 @@ import fetch from "node-fetch";
 
 /**
  * Crawl Product Hunt for trending software by topic
+ * @param {number} limit - Number of posts to fetch
+ * @param {string|null} topic - Optional topic name (e.g. "AI Tools")
  */
 export async function crawlProductHunt(limit = 10, topic = null) {
-  // Fetch more posts so we have more to filter from
+  // Build filter
+  const topicFilter = topic
+    ? `(topics: { slug: "${topic.toLowerCase().replace(/\s+/g, "-")}" })`
+    : "";
+
+  // GraphQL query
   const query = `
     query {
-      posts(order: RANKING, first: 100) {
+      posts(order: RANKING, first: ${limit}, ${topic ? `after: null` : ""}) {
         edges {
           node {
             name
@@ -18,6 +25,7 @@ export async function crawlProductHunt(limit = 10, topic = null) {
               edges {
                 node {
                   name
+                  slug
                 }
               }
             }
@@ -33,52 +41,45 @@ export async function crawlProductHunt(limit = 10, topic = null) {
     }
   `;
 
-  // --- Make API call ---
+  // API call
   const response = await fetch("https://api.producthunt.com/v2/api/graphql", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      "Authorization": `Bearer ${process.env.PRODUCTHUNT_API_KEY}`
+      "Authorization": `Bearer ${process.env.PRODUCTHUNT_API_KEY}`,
     },
-    body: JSON.stringify({ query })
+    body: JSON.stringify({ query }),
   });
 
-  if (!response.ok) throw new Error(`Product Hunt API failed: ${response.statusText}`);
+  if (!response.ok) {
+    throw new Error(`Product Hunt API failed: ${response.statusText}`);
+  }
 
   const data = await response.json();
-  const posts = data?.data?.posts?.edges || [];
 
-  // Fuzzy match for topic (so “Health” matches “Healthcare”, etc.)
-  const filtered = topic
-    ? posts.filter(({ node }) => {
-        const allTopics = node.topics.edges.map(t => t.node.name.toLowerCase());
-        const topicLower = topic.toLowerCase();
-        return allTopics.some(t =>
-          t.includes(topicLower) ||
-          topicLower.includes(t)
-        );
-      })
-    : posts;
+  // Defensive check to avoid "undefined posts" errors
+  if (!data.data || !data.data.posts) {
+    console.log("⚠️ No posts found for topic:", topic);
+    return [];
+  }
 
-  // Format clean results
-  const formatted = filtered.slice(0, limit).map(({ node }) => ({
+  const posts = data.data.posts.edges.map(({ node }) => ({
     name: node.name,
     tagline: node.tagline,
     votes: node.votesCount,
     url: node.website,
     producthunt_url: node.url,
-    topics: node.topics.edges.map(t => t.node.name).join(", "),
+    topics: node.topics.edges.map((t) => t.node.name).join(", "),
     description: node.description,
     thumbnail: node.thumbnail?.url,
-    launchDate: node.createdAt
+    launchDate: node.createdAt,
   }));
 
-  console.log(`✅ Found ${formatted.length} posts for topic "${topic || 'All'}"`);
-  return formatted;
+  console.log(`✅ Found ${posts.length} posts for topic: ${topic || "Trending"}`);
+  return posts;
 }
 
-// Optional test runner
+// Optional test
 if (import.meta.url === `file://${process.argv[1]}`) {
-  crawlProductHunt(10, "AI").then(console.log).catch(console.error);
+  crawlProductHunt(10, "AI Tools").then(console.log).catch(console.error);
 }
-
