@@ -3,12 +3,17 @@ import { evaluateProducts } from "./evaluation-engine.js";
 
 /**
  * Crawl Product Hunt for trending software
- * Returns list of products with metadata
+ * Optionally filter by topic/category
  */
-export async function crawlProductHunt(limit = 10) {
+export async function crawlProductHunt(limit = 10, topic = null) {
+  // --- Build GraphQL query dynamically ---
+  const topicFilter = topic
+    ? `(order: RANKING, first: ${limit}, filters: {topics: ["${topic}"]})`
+    : `(order: RANKING, first: ${limit})`;
+
   const query = `
     query {
-      posts(order: RANKING, first: ${limit}) {
+      posts${topicFilter} {
         edges {
           node {
             name
@@ -39,7 +44,6 @@ export async function crawlProductHunt(limit = 10) {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      // 👇 This reads your secret key from Vercel Environment Variables
       "Authorization": `Bearer ${process.env.PRODUCTHUNT_API_KEY}`
     },
     body: JSON.stringify({ query })
@@ -63,12 +67,17 @@ export async function crawlProductHunt(limit = 10) {
     launchDate: node.createdAt
   }));
 
+  // Optional evaluation hook (if you want to rank/filter later)
+  if (typeof evaluateProducts === "function") {
+    return evaluateProducts(posts);
+  }
+
   return posts;
 }
 
-// Optional test runner — this lets you test it manually
+// Optional test runner — lets you run it manually
 if (import.meta.url === `file://${process.argv[1]}`) {
-  crawlProductHunt()
+  crawlProductHunt(10, "Artificial Intelligence")
     .then((data) => {
       console.log(JSON.stringify(data, null, 2));
     })
