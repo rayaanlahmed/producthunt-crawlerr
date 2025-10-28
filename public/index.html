@@ -1,245 +1,69 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Product Hunt Crawler</title>
-  <style>
-    *{margin:0;padding:0;box-sizing:border-box}
-    body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Oxygen,Ubuntu,Cantarell,sans-serif;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);min-height:100vh;padding:20px}
-    .container{max-width:1200px;margin:0 auto}
-    .header{text-align:center;color:white;margin-bottom:30px}
-    .header h1{font-size:2.5rem;margin-bottom:10px}
-    .header p{font-size:1.1rem;opacity:.9}
-    .card{background:white;border-radius:12px;padding:30px;box-shadow:0 10px 30px rgba(0,0,0,.2);margin-bottom:20px}
-    .form-group{margin-bottom:20px}
-    label{display:block;font-weight:600;margin-bottom:8px;color:#333}
-    .category-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin-bottom:15px}
-    .category-tag{background:#f0f0f0;padding:10px 15px;border-radius:6px;cursor:pointer;transition:all .3s;text-align:center;border:2px solid transparent}
-    .category-tag:hover{background:#e0e0e0}
-    .category-tag.selected{background:#667eea;color:white;border-color:#5568d3}
-    input[type="number"],select{width:100%;padding:12px;border:2px solid #e0e0e0;border-radius:6px;font-size:1rem;transition:border-color .3s}
-    input[type="number"]:focus,select:focus{outline:none;border-color:#667eea}
-    .btn{background:#667eea;color:white;padding:15px 30px;border:none;border-radius:6px;font-size:1.1rem;font-weight:600;cursor:pointer;width:100%;transition:background .3s}
-    .btn:hover{background:#5568d3}
-    .btn:disabled{background:#ccc;cursor:not-allowed}
-    .loading{text-align:center;padding:20px;display:none}
-    .loading.active{display:block}
-    .spinner{border:4px solid #f3f3f3;border-top:4px solid #667eea;border-radius:50%;width:50px;height:50px;animation:spin 1s linear infinite;margin:0 auto 15px}
-    @keyframes spin{0%{transform:rotate(0deg)}100%{transform:rotate(360deg)}}
-    .results{display:none}
-    .results.active{display:block}
-    .result-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;padding-bottom:15px;border-bottom:2px solid #e0e0e0}
-    .download-btn{background:#28a745;color:white;padding:10px 20px;border:none;border-radius:6px;cursor:pointer;font-weight:600;margin-right:10px}
-    .download-btn:hover{background:#218838}
-    .product-card{background:#f8f9fa;border-radius:8px;padding:20px;margin-bottom:15px;border-left:4px solid #667eea;transition:transform .2s,box-shadow .2s}
-    .product-card:hover{transform:translateY(-2px);box-shadow:0 4px 12px rgba(0,0,0,.1)}
-    .product-title{font-size:1.4rem;font-weight:600;color:#333;margin-bottom:10px}
-    .product-url{color:#667eea;text-decoration:none;font-size:.9rem;display:inline-block;margin-bottom:10px}
-    .product-url:hover{text-decoration:underline}
-    .product-meta{display:flex;flex-wrap:wrap;gap:15px;margin:15px 0;font-size:.95rem}
-    .category-badge{background:#667eea;color:white;padding:4px 12px;border-radius:12px;font-size:.85rem}
-    .error{background:#f8d7da;color:#721c24;padding:15px;border-radius:6px;margin-bottom:15px;border-left:4px solid #f5c6cb}
-  </style>
-</head>
-<body>
-  <div class="container">
-    <div class="header">
-      <h1>🚀 Product Hunt Crawler</h1>
-      <p>Discover trending startups and AI tools by topic</p>
-    </div>
+<script>
+function displayResults(products, rateLimited = []) {
+  resultCount.textContent = `Found ${products.length} product${products.length !== 1 ? 's' : ''}`;
 
-    <div class="card">
-      <form id="crawlForm">
-        <div class="form-group">
-          <label>Select Topic:</label>
-          <div class="category-grid" id="categoryGrid">
-            <div class="category-tag" data-category="artificial-intelligence">Artificial Intelligence</div>
-            <div class="category-tag" data-category="developer-tools">Developer Tools</div>
-            <div class="category-tag" data-category="design-tools">Design Tools</div>
-            <div class="category-tag" data-category="marketing">Marketing</div>
-            <div class="category-tag" data-category="productivity">Productivity</div>
-            <div class="category-tag" data-category="finance">Finance</div>
-            <div class="category-tag" data-category="education">Education</div>
-            <div class="category-tag" data-category="healthtech">Health & Fitness</div>
-            <div class="category-tag" data-category="web3">Web3</div>
-            <div class="category-tag" data-category="startups">Startups</div>
-            <div class="category-tag" data-category="customer-communication">Customer Communication</div>
-            <div class="category-tag" data-category="wearables">Wearables</div>
-          </div>
-        </div>
+  let html = '';
 
-        <div class="form-group">
-          <label for="maxPages">Maximum Products to Scrape:</label>
-          <input type="number" id="maxPages" name="maxPages" value="30" min="1" max="100">
-        </div>
-
-        <button type="submit" class="btn" id="crawlBtn">Start Crawling</button>
-      </form>
-    </div>
-
-    <div class="loading" id="loading">
-      <div class="card">
-        <div class="spinner"></div>
-        <p id="loadingText">🚀 Crawling Product Hunt...</p>
+  if (rateLimited && rateLimited.length > 0) {
+    html += `
+      <div style="background: #fff3cd; border: 2px solid #ffc107; border-radius: 8px; padding: 20px; margin-bottom: 20px;">
+        <h3 style="margin: 0 0 10px 0; color: #856404;">⚠️ ${rateLimited.length} Product(s) Rate Limited</h3>
+        <p style="margin: 0 0 15px 0; color: #856404;">These products couldn’t be scraped due to rate limiting:</p>
+        <ul>${rateLimited.map(item => `<li>${item.name}</li>`).join('')}</ul>
       </div>
-    </div>
+    `;
+  }
 
-    <div class="results" id="results">
-      <div class="card">
-        <div class="result-header">
-          <div class="result-count" id="resultCount">Found 0 products</div>
-          <div>
-            <button class="download-btn" id="restartBtn" style="background:#dc3545;">New Search</button>
-            <button class="download-btn" id="downloadJsonBtn">Download JSON</button>
-            <button class="download-btn" id="downloadMdBtn" style="background:#17a2b8;">Download Markdown</button>
-          </div>
+  if (products.length === 0) {
+    html += '<p style="text-align:center; color:#666; padding:20px;">No products found matching your criteria.</p>';
+  } else {
+    html += products.map((product, index) => `
+      <div class="product-card">
+        <div class="product-title">${escapeHtml(product.name)}</div>
+
+        <!-- 🔗 Direct Links -->
+        <div style="margin-bottom: 10px;">
+          ${product.producthunt_url ? `<a href="${escapeHtml(product.producthunt_url)}" target="_blank" class="product-url">🔗 View on Product Hunt</a><br>` : ''}
+          ${product.url ? `<a href="${escapeHtml(product.url)}" target="_blank" class="product-url">🌐 Official Website</a>` : ''}
         </div>
-        <div id="productList"></div>
-      </div>
-    </div>
-  </div>
 
-  <script>
-    const categoryGrid = document.getElementById('categoryGrid');
-    const crawlForm = document.getElementById('crawlForm');
-    const loading = document.getElementById('loading');
-    const results = document.getElementById('results');
-    const productList = document.getElementById('productList');
-    const resultCount = document.getElementById('resultCount');
-    const crawlBtn = document.getElementById('crawlBtn');
-    const restartBtn = document.getElementById('restartBtn');
-    const downloadJsonBtn = document.getElementById('downloadJsonBtn');
-    const downloadMdBtn = document.getElementById('downloadMdBtn');
+        <!-- 💬 Summary -->
+        ${product.tagline ? `<div class="product-description"><strong>Tagline:</strong> ${escapeHtml(product.tagline)}</div>` : ''}
+        ${product.description ? `<div class="product-description"><strong>Description:</strong> ${escapeHtml(product.description)}</div>` : ''}
 
-    let selectedCategories = [];
-    let currentProducts = [];
+        <!-- 📊 Meta -->
+        <div class="product-meta">
+          ${product.votes ? `<div class="meta-item"><strong>Popularity:</strong> ${product.votes} votes</div>` : ''}
+          ${product.launchDate ? `<div class="meta-item"><strong>Launched:</strong> ${new Date(product.launchDate).toLocaleDateString()}</div>` : ''}
+          ${product.score ? `<div class="meta-item"><strong>AI Evaluation Score:</strong> ${product.score}/100 🧠</div>` : ''}
+        </div>
 
-    categoryGrid.addEventListener('click', e => {
-      if (e.target.classList.contains('category-tag')) {
-        e.target.classList.toggle('selected');
-        const category = e.target.dataset.category;
-        if (selectedCategories.includes(category)) {
-          selectedCategories = selectedCategories.filter(c => c !== category);
-        } else {
-          selectedCategories = [category]; // one at a time
-        }
-      }
-    });
-
-    crawlForm.addEventListener('submit', async e => {
-      e.preventDefault();
-      const maxPages = parseInt(document.getElementById('maxPages').value);
-      loading.classList.add('active');
-      results.classList.remove('active');
-      crawlBtn.disabled = true;
-      currentProducts = [];
-
-      try {
-        const response = await fetch('/api/crawl', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ categories: selectedCategories, maxPages })
-        });
-
-        const reader = response.body.getReader();
-        const decoder = new TextDecoder();
-        let buffer = '';
-
-        while (true) {
-          const { value, done } = await reader.read();
-          if (done) break;
-          buffer += decoder.decode(value, { stream: true });
-          const lines = buffer.split('\n');
-          for (let i = 0; i < lines.length - 1; i++) {
-            const line = lines[i];
-            if (line.startsWith('data: ')) {
-              const jsonData = JSON.parse(line.slice(6));
-              if (jsonData.type === 'complete') {
-                currentProducts = jsonData.products;
-                displayResults(currentProducts);
-              }
-            }
-          }
-          buffer = lines[lines.length - 1];
-        }
-      } catch (err) {
-        productList.innerHTML = `<div class="error">Error: ${err.message}</div>`;
-        results.classList.add('active');
-      } finally {
-        loading.classList.remove('active');
-        crawlBtn.disabled = false;
-      }
-    });
-
-    function displayResults(products) {
-      resultCount.textContent = `Found ${products.length} product${products.length !== 1 ? 's' : ''}`;
-      if (products.length === 0) {
-        productList.innerHTML = '<p style="text-align:center;color:#666;">No products found.</p>';
-        results.classList.add('active');
-        return;
-      }
-
-      const html = products.map(p => `
-        <div class="product-card">
-          <div class="product-title">${escapeHtml(p.name)}</div>
-          <a href="${escapeHtml(p.producthunt_url)}" target="_blank" class="product-url">${escapeHtml(p.producthunt_url)}</a>
-          <div class="product-meta">
-            <div><strong>Votes:</strong> ${p.votes}</div>
-            <div><strong>Score:</strong> ${p.score || 0}/100 🧠</div>
-            <div><strong>Launched:</strong> ${new Date(p.launchDate).toLocaleDateString()}</div>
-          </div>
-          <div>${escapeHtml(p.tagline || '')}</div>
-          <div>${escapeHtml(p.description || '')}</div>
+        <!-- 🏷 Topics -->
+        ${product.topics ? `
           <div class="product-categories">
-            ${p.topics.split(',').map(t => `<span class="category-badge">${escapeHtml(t.trim())}</span>`).join('')}
+            ${product.topics.split(',').map(cat => `<span class="category-badge">${escapeHtml(cat.trim())}</span>`).join('')}
           </div>
-        </div>
-      `).join('');
+        ` : ''}
 
-      productList.innerHTML = html;
-      results.classList.add('active');
-    }
+        <!-- 👤 Founder -->
+        ${product.founder ? `
+          <div style="margin-top:10px;">
+            <strong>Founder:</strong> ${escapeHtml(product.founder)}
+            ${product.founderProfile ? ` - <a href="${escapeHtml(product.founderProfile)}" target="_blank" style="color:#0077B5;">LinkedIn</a>` : ''}
+          </div>
+        ` : ''}
+      </div>
+    `).join('');
+  }
 
-    function escapeHtml(text) {
-      const div = document.createElement('div');
-      div.textContent = text;
-      return div.innerHTML;
-    }
+  productList.innerHTML = html;
+  results.classList.add('active');
+}
 
-    restartBtn.addEventListener('click', () => {
-      results.classList.remove('active');
-      currentProducts = [];
-      selectedCategories = [];
-      document.querySelectorAll('.category-tag.selected').forEach(t => t.classList.remove('selected'));
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    });
-
-    downloadJsonBtn.addEventListener('click', () => {
-      const dataStr = JSON.stringify(currentProducts, null, 2);
-      const blob = new Blob([dataStr], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = 'producthunt_products.json';
-      link.click();
-      URL.revokeObjectURL(url);
-    });
-
-    downloadMdBtn.addEventListener('click', () => {
-      let md = `# Product Hunt Results\n\n**Total Products:** ${currentProducts.length}\n\n---\n\n`;
-      currentProducts.forEach((p, i) => {
-        md += `## ${i + 1}. ${p.name}\n- Votes: ${p.votes}\n- Score: ${p.score || 0}/100\n- [View on Product Hunt](${p.producthunt_url})\n\n`;
-      });
-      const blob = new Blob([md], { type: 'text/markdown' });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = 'producthunt_results.md';
-      link.click();
-      URL.revokeObjectURL(url);
-    });
-  </script>
-</body>
-</html>
+function escapeHtml(text) {
+  const div = document.createElement('div');
+  div.textContent = text;
+  return div.innerHTML;
+}
+</script>
 
