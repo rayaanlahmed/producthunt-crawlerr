@@ -1,0 +1,33 @@
+// evaluation-engine.js
+export function evaluateProducts(products) {
+  return products.map((p) => {
+    // Base score from votes and recentness
+    let score = 0;
+    if (p.votes) score += Math.min(p.votes / 100, 5); // max 5 points
+    if (p.launchDate) {
+      const daysSinceLaunch = (Date.now() - new Date(p.launchDate)) / (1000 * 60 * 60 * 24);
+      if (daysSinceLaunch < 30) score += 3; // recent launches
+      else if (daysSinceLaunch < 90) score += 2;
+    }
+
+    // Add boost if topic looks like AI / tech / trending
+    const topicMatch = (p.topics || "").toLowerCase();
+    if (topicMatch.includes("artificial intelligence") || topicMatch.includes("ai")) score += 2;
+    else if (topicMatch.includes("developer") || topicMatch.includes("tools")) score += 1;
+
+    // Cap at 10
+    score = Math.min(score, 10);
+
+    // Add a quick summary tag
+    let summary = "";
+    if (score >= 8) summary = "🔥 Highly Trending";
+    else if (score >= 6) summary = "⭐ Growing Fast";
+    else summary = "💡 Niche or Early-Stage";
+
+    return {
+      ...p,
+      score: score.toFixed(1),
+      evaluation: summary,
+    };
+  });
+}
