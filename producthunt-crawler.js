@@ -7,7 +7,6 @@ import { evaluateProducts } from "./evaluation-engine.js";
  * @param {string|null} topic - optional topic slug (e.g., "artificial-intelligence")
  */
 export async function crawlProductHunt(limit = 10, topic = null) {
-  // 🧠 Build the GraphQL query dynamically
   const topicFilter = topic
     ? `(order: RANKING, first: ${limit}, featured: true, topic: "${topic}")`
     : `(order: RANKING, first: ${limit}, featured: true)`;
@@ -19,28 +18,27 @@ export async function crawlProductHunt(limit = 10, topic = null) {
           node {
             name
             tagline
+            description
             votesCount
             website
-            topics {
+            url
+            createdAt
+            thumbnail { url }
+            topics { edges { node { name } } }
+            makers {
               edges {
                 node {
                   name
+                  profileUrl
                 }
               }
             }
-            description
-            createdAt
-            thumbnail {
-              url
-            }
-            url
           }
         }
       }
     }
   `;
 
-  // --- Make API call ---
   const response = await fetch("https://api.producthunt.com/v2/api/graphql", {
     method: "POST",
     headers: {
@@ -56,28 +54,27 @@ export async function crawlProductHunt(limit = 10, topic = null) {
 
   const data = await response.json();
 
-  // ✅ Defensive check to prevent “Cannot read properties of undefined”
   if (!data.data || !data.data.posts) {
     console.log("⚠️ No posts found for topic:", topic);
     return [];
   }
 
-  // --- Format data ---
   const posts = data.data.posts.edges.map(({ node }) => ({
     name: node.name,
     tagline: node.tagline,
+    description: node.description,
     votes: node.votesCount,
     url: node.website,
     producthunt_url: node.url,
     topics: node.topics.edges.map(t => t.node.name).join(", "),
-    description: node.description,
+    founder: node.makers?.edges?.[0]?.node?.name || null,
+    founderProfile: node.makers?.edges?.[0]?.node?.profileUrl || null,
     thumbnail: node.thumbnail?.url,
     launchDate: node.createdAt,
   }));
 
-  // 🧩 Apply evaluation scoring before returning
+  // 🧠 Apply evaluation scoring before returning
   const evaluated = evaluateProducts(posts);
-
   return evaluated;
 }
 
@@ -85,8 +82,5 @@ export async function crawlProductHunt(limit = 10, topic = null) {
 if (import.meta.url === `file://${process.argv[1]}`) {
   crawlProductHunt(10, "artificial-intelligence")
     .then((data) => console.log(JSON.stringify(data, null, 2)))
-    .catch((error) =>
-      console.error("❌ Error running Product Hunt crawler:", error.message)
-    );
+    .catch((error) => console.error("❌ Error running Product Hunt crawler:", error.message));
 }
-
