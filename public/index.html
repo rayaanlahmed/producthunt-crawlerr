@@ -518,29 +518,60 @@
         });
 
         // Display results
-        function displayResults(products, rateLimited = []) {
-            resultCount.textContent = `Found ${products.length} product${products.length !== 1 ? 's' : ''}`;
+        <script>
+function displayResults(products, rateLimited = []) {
+    resultCount.textContent = `Found ${products.length} product${products.length !== 1 ? 's' : ''}`;
 
-            let html = '';
+    let html = '';
 
-            // Show rate-limited warning if any
-            if (rateLimited && rateLimited.length > 0) {
-                html += `
-                    <div style="background: #fff3cd; border: 2px solid #ffc107; border-radius: 8px; padding: 20px; margin-bottom: 20px;">
-                        <h3 style="margin: 0 0 10px 0; color: #856404;">⚠️ ${rateLimited.length} Product(s) Rate Limited</h3>
-                        <p style="margin: 0 0 15px 0; color: #856404;">The following products couldn't be scraped due to rate limiting:</p>
-                        <ul style="margin: 0 0 15px 0; color: #856404;">
-                            ${rateLimited.map(item => `<li>${item.name}</li>`).join('')}
-                        </ul>
-                        <button id="retryBtn" class="download-btn" style="background: #ffc107; color: #000;">
-                            Retry in 60 seconds
-                        </button>
-                        <p style="margin: 10px 0 0 0; font-size: 0.9rem; color: #856404;">
-                            <em>Note: This will wait 60 seconds before retrying to avoid further rate limiting.</em>
-                        </p>
+    // Show rate-limited warning if any
+    if (rateLimited && rateLimited.length > 0) {
+        html += `
+            <div style="background: #fff3cd; border: 2px solid #ffc107; border-radius: 8px; padding: 20px; margin-bottom: 20px;">
+                <h3 style="margin: 0 0 10px 0; color: #856404;">⚠️ ${rateLimited.length} Product(s) Rate Limited</h3>
+                <p style="margin: 0 0 15px 0; color: #856404;">The following products couldn't be scraped due to rate limiting:</p>
+                <ul style="margin: 0 0 15px 0; color: #856404;">
+                    ${rateLimited.map(item => `<li>${item.name}</li>`).join('')}
+                </ul>
+            </div>
+        `;
+    }
+
+    if (products.length === 0) {
+        html += '<p style="text-align: center; color: #666; padding: 20px;">No products found matching your criteria.</p>';
+    } else {
+        html += products.map((product, index) => `
+            <div class="product-card">
+                <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px;">
+                    <input type="checkbox" class="product-checkbox" data-index="${index}" data-url="${escapeHtml(product.url)}" style="width: 18px; height: 18px; cursor: pointer;">
+                    <div class="product-title" style="margin: 0;">${escapeHtml(product.name)}</div>
+                </div>
+
+                <a href="${escapeHtml(product.producthunt_url)}" target="_blank" class="product-url">${escapeHtml(product.producthunt_url)}</a>
+
+                <div class="product-meta">
+                    ${product.votes ? `<div class="meta-item"><strong>Votes:</strong> ${product.votes} 👍</div>` : ''}
+                    ${product.launchDate ? `<div class="meta-item"><strong>Launch Date:</strong> ${new Date(product.launchDate).toLocaleDateString()}</div>` : ''}
+                    ${product.score ? `<div class="meta-item"><strong>AI Evaluation Score:</strong> ${product.score}/100 🧠</div>` : ''}
+                </div>
+
+                ${product.topics ? `
+                    <div class="product-categories">
+                        ${product.topics.split(",").map(cat => `<span class="category-badge">${escapeHtml(cat.trim())}</span>`).join('')}
                     </div>
-                `;
-            }
+                ` : ''}
+
+                ${product.description ? `
+                    <div class="product-description" style="margin-top: 10px; margin-bottom: 10px;">${escapeHtml(product.description)}</div>
+                ` : ''}
+            </div>
+        `).join('');
+    }
+
+    productList.innerHTML = html;
+    results.classList.add('active');
+}
+</script>
 
             if (products.length === 0) {
                 html += '<p style="text-align: center; color: #666; padding: 20px;">No products found matching your criteria.</p>';
