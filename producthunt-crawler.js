@@ -1,67 +1,45 @@
 import fetch from "node-fetch";
 
 /**
- * Crawl Product Hunt for trending or topic-specific software
+ * Crawl Product Hunt for trending software or by topic
+ * @param {number} limit - number of posts to fetch
+ * @param {string|null} topic - optional topic slug (e.g., "artificial-intelligence")
  */
 export async function crawlProductHunt(limit = 10, topic = null) {
-  // Map frontend category to Product Hunt topic slug
-  const topicMap = {
-    "artificial-intelligence": "artificial-intelligence",
-    "developer-tools": "developer-tools",
-    "design-tools": "design-tools",
-    "marketing": "marketing",
-    "productivity": "productivity",
-    "finance": "finance",
-    "education": "education",
-    "healthtech": "healthtech",
-    "web3": "web3",
-    "startups": "startups",
-    "customer-communication": "customer-communication",
-    "wearables": "wearables",
-  };
+  // 🧠 Build the GraphQL query dynamically
+  const topicFilter = topic
+    ? `(order: RANKING, first: ${limit}, featured: true, topic: "${topic}")`
+    : `(order: RANKING, first: ${limit}, featured: true)`;
 
-  const topicSlug = topic ? topicMap[topic] || topic : null;
-
-  // 🧠 Choose query based on whether a topic is selected
-  const query = topicSlug
-    ? `
-      query {
-        topic(slug: "${topicSlug}") {
-          name
-          posts(order: RANKING, first: ${limit}) {
-            edges {
-              node {
-                name
-                tagline
-                votesCount
-                website
-                description
-                createdAt
-                thumbnail { url }
-                url
+  const query = `
+    query {
+      posts${topicFilter} {
+        edges {
+          node {
+            name
+            tagline
+            votesCount
+            website
+            topics {
+              edges {
+                node {
+                  name
+                }
               }
             }
-          }
-        }
-      }`
-    : `
-      query {
-        posts(order: RANKING, first: ${limit}) {
-          edges {
-            node {
-              name
-              tagline
-              votesCount
-              website
-              description
-              createdAt
-              thumbnail { url }
+            description
+            createdAt
+            thumbnail {
               url
             }
+            url
           }
         }
-      }`;
+      }
+    }
+  `;
 
+  // --- Make API call ---
   const response = await fetch("https://api.producthunt.com/v2/api/graphql", {
     method: "POST",
     headers: {
@@ -71,26 +49,37 @@ export async function crawlProductHunt(limit = 10, topic = null) {
     body: JSON.stringify({ query }),
   });
 
-  if (!response.ok) throw new Error(`Product Hunt API failed: ${response.statusText}`);
+  if (!response.ok) {
+    throw new Error(`Product Hunt API failed: ${response.statusText}`);
+  }
 
   const data = await response.json();
 
-  // 🧹 Normalize response structure
-  const posts =
-    topicSlug && data.data.topic
-      ? data.data.topic.posts.edges
-      : data.data.posts?.edges || [];
+  // ✅ Defensive check to prevent “Cannot read properties of undefined”
+  if (!data.data || !data.data.posts) {
+    console.log("⚠️ No posts found for topic:", topic);
+    return [];
+  }
 
-  if (!posts || posts.length === 0) return [];
-
-  return posts.map(({ node }) => ({
+  // --- Format data ---
+  const posts = data.data.posts.edges.map(({ node }) => ({
     name: node.name,
     tagline: node.tagline,
     votes: node.votesCount,
     url: node.website,
     producthunt_url: node.url,
+    topics: node.topics.edges.map(t => t.node.name).join(", "),
     description: node.description,
     thumbnail: node.thumbnail?.url,
     launchDate: node.createdAt,
   }));
+
+  return posts;
+}
+
+// Manual test (optional)
+if (import.meta.url === `file://${process.argv[1]}`) {
+  crawlProductHunt(10, "artificial-intelligence")
+    .then((data) => console.log(JSON.stringify(data, null, 2)))
+    .catch((error) => console.error("❌ Error running Product Hunt crawler:", error.message));
 }
