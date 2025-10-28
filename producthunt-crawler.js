@@ -1,5 +1,5 @@
 import fetch from "node-fetch";
-import { evaluateProducts } from "./evaluation-engine.js"; // 🧠 Import your evaluation engine
+import { evaluateProducts } from "./evaluation-engine.js";
 
 /**
  * Crawl Product Hunt for trending software or by topic
@@ -7,54 +7,38 @@ import { evaluateProducts } from "./evaluation-engine.js"; // 🧠 Import your e
  * @param {string|null} topic - optional topic slug (e.g., "artificial-intelligence")
  */
 export async function crawlProductHunt(limit = 10, topic = null) {
-  // 🧠 GraphQL query with optional topic filter
-  const query = topic
-    ? `
-      query {
-        posts(order: RANKING, first: ${limit}, featured: true, topic: "${topic}") {
-          edges {
-            node {
-              name
-              tagline
-              votesCount
-              website
-              topics {
-                edges {
-                  node { name }
+  // 🧠 Build the GraphQL query dynamically
+  const topicFilter = topic
+    ? `(order: RANKING, first: ${limit}, featured: true, topic: "${topic}")`
+    : `(order: RANKING, first: ${limit}, featured: true)`;
+
+  const query = `
+    query {
+      posts${topicFilter} {
+        edges {
+          node {
+            name
+            tagline
+            votesCount
+            website
+            topics {
+              edges {
+                node {
+                  name
                 }
               }
-              description
-              createdAt
-              thumbnail { url }
+            }
+            description
+            createdAt
+            thumbnail {
               url
             }
+            url
           }
         }
       }
-    `
-    : `
-      query {
-        posts(order: RANKING, first: ${limit}, featured: true) {
-          edges {
-            node {
-              name
-              tagline
-              votesCount
-              website
-              topics {
-                edges {
-                  node { name }
-                }
-              }
-              description
-              createdAt
-              thumbnail { url }
-              url
-            }
-          }
-        }
-      }
-    `;
+    }
+  `;
 
   // --- Make API call ---
   const response = await fetch("https://api.producthunt.com/v2/api/graphql", {
@@ -72,13 +56,13 @@ export async function crawlProductHunt(limit = 10, topic = null) {
 
   const data = await response.json();
 
-  // ✅ Defensive check
+  // ✅ Defensive check to prevent “Cannot read properties of undefined”
   if (!data.data || !data.data.posts) {
     console.log("⚠️ No posts found for topic:", topic);
     return [];
   }
 
-  // --- Format results ---
+  // --- Format data ---
   const posts = data.data.posts.edges.map(({ node }) => ({
     name: node.name,
     tagline: node.tagline,
@@ -91,16 +75,18 @@ export async function crawlProductHunt(limit = 10, topic = null) {
     launchDate: node.createdAt,
   }));
 
-  // 🧩 Run each product through evaluation engine for scoring
-  const evaluatedPosts = evaluateProducts(posts);
+  // 🧩 Apply evaluation scoring before returning
+  const evaluated = evaluateProducts(posts);
 
-  return evaluatedPosts;
+  return evaluated;
 }
 
 // Manual test (optional)
 if (import.meta.url === `file://${process.argv[1]}`) {
   crawlProductHunt(10, "artificial-intelligence")
     .then((data) => console.log(JSON.stringify(data, null, 2)))
-    .catch((error) => console.error("❌ Error running Product Hunt crawler:", error.message));
+    .catch((error) =>
+      console.error("❌ Error running Product Hunt crawler:", error.message)
+    );
 }
 
