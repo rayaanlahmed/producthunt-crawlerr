@@ -1,44 +1,65 @@
 import fetch from "node-fetch";
-import { evaluateProducts } from "./evaluation-engine.js";
 
 /**
- * Crawl Product Hunt for trending software or by topic
- * @param {number} limit - number of posts to fetch
- * @param {string|null} topic - optional topic slug (e.g., "artificial-intelligence")
+ * Crawl Product Hunt for trending products, optionally by topic
+ * @param {number} limit - Number of posts to fetch
+ * @param {string|null} topic - Optional topic filter (ex: "Artificial Intelligence")
  */
 export async function crawlProductHunt(limit = 10, topic = null) {
-  const topicFilter = topic
-    ? `(order: RANKING, first: ${limit}, featured: true, topic: "${topic}")`
-    : `(order: RANKING, first: ${limit}, featured: true)`;
+  // Normalize topic to match Product Hunt's slugs
+  const topicSlug = topic
+    ? topic.toLowerCase().replace(/&/g, "and").replace(/\s+/g, "-")
+    : null;
 
-  const query = `
-    query {
-      posts${topicFilter} {
-        edges {
-          node {
-            name
-            tagline
-            description
-            votesCount
-            website
-            url
-            createdAt
-            thumbnail { url }
-            topics { edges { node { name } } }
-            makers {
-              edges {
-                node {
-                  name
-                  profileUrl
+  // Build query
+  const query = topicSlug
+    ? `
+      query {
+        topic(slug: "${topicSlug}") {
+          name
+          posts(first: ${limit}) {
+            edges {
+              node {
+                name
+                tagline
+                votesCount
+                website
+                url
+                description
+                createdAt
+                thumbnail { url }
+                topics {
+                  edges { node { name slug } }
                 }
               }
             }
           }
         }
       }
-    }
-  `;
+    `
+    : `
+      query {
+        posts(order: RANKING, first: ${limit}) {
+          edges {
+            node {
+              name
+              tagline
+              votesCount
+              website
+              url
+              description
+              createdAt
+              thumbnail { url }
+              topics {
+                edges { node { name slug } }
+              }
+            }
+          }
+        }
+      }
+    `;
 
+  // Fetch data from Product Hunt API
   const response = await fetch("https://api.producthunt.com/v2/api/graphql", {
     method: "POST",
     headers: {
@@ -54,33 +75,41 @@ export async function crawlProductHunt(limit = 10, topic = null) {
 
   const data = await response.json();
 
-  if (!data.data || !data.data.posts) {
-    console.log("⚠️ No posts found for topic:", topic);
+  let posts = [];
+
+  // Handle both cases — with topic or general trending
+  if (topicSlug && data.data.topic) {
+    posts = data.data.topic.posts.edges.map(({ node }) => node);
+  } else if (data.data.posts) {
+    posts = data.data.posts.edges.map(({ node }) => node);
+  } else {
+    console.log("⚠️ No posts found for topic:", topicSlug);
     return [];
   }
 
-  const posts = data.data.posts.edges.map(({ node }) => ({
+  // Format data for frontend
+  const formatted = posts.map((node) => ({
     name: node.name,
     tagline: node.tagline,
-    description: node.description,
     votes: node.votesCount,
     url: node.website,
     producthunt_url: node.url,
-    topics: node.topics.edges.map(t => t.node.name).join(", "),
-    founder: node.makers?.edges?.[0]?.node?.name || null,
-    founderProfile: node.makers?.edges?.[0]?.node?.profileUrl || null,
+    topics: node.topics.edges.map((t) => t.node.name).join(", "),
+    description: node.description,
     thumbnail: node.thumbnail?.url,
     launchDate: node.createdAt,
   }));
 
-  // 🧠 Apply evaluation scoring before returning
-  const evaluated = evaluateProducts(posts);
-  return evaluated;
+  console.log(
+    `✅ Found ${formatted.length} posts for topic: ${topicSlug || "Trending"}`
+  );
+
+  return formatted;
 }
 
-// Manual test (optional)
+// Optional: test manually
 if (import.meta.url === `file://${process.argv[1]}`) {
-  crawlProductHunt(10, "artificial-intelligence")
+  crawlProductHunt(10, "Artificial Intelligence")
     .then((data) => console.log(JSON.stringify(data, null, 2)))
-    .catch((error) => console.error("❌ Error running Product Hunt crawler:", error.message));
+    .catch((err) => console.error(err));
 }
