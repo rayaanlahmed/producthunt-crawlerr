@@ -16,17 +16,21 @@ app.use(express.static('public'));
 // API endpoint for crawling Product Hunt
 app.post('/api/crawl', async (req, res) => {
     try {
-        const { limit = 10 } = req.body;
+        // ✅ FIXED: match frontend request body
+        const { maxPages = 10, categories = [] } = req.body;
+        const topic = categories.length > 0 ? categories[0] : null;
+        const limit = maxPages;
 
         // Setup Server-Sent Events
         res.setHeader('Content-Type', 'text/event-stream');
         res.setHeader('Cache-Control', 'no-cache');
         res.setHeader('Connection', 'keep-alive');
 
-        console.log('Starting Product Hunt crawl...');
+        console.log(`🚀 Starting Product Hunt crawl... Topic: ${topic || 'Trending'}`);
 
         try {
-            const products = await crawlProductHunt(limit);
+            // Pass topic to the crawler
+            const products = await crawlProductHunt(limit, topic);
 
             res.write(`data: ${JSON.stringify({
                 type: 'complete',
@@ -36,7 +40,7 @@ app.post('/api/crawl', async (req, res) => {
             })}\n\n`);
             res.end();
         } catch (error) {
-            console.error('Error during Product Hunt crawl:', error);
+            console.error('❌ Error during Product Hunt crawl:', error);
             res.write(`data: ${JSON.stringify({
                 type: 'error',
                 error: error.message
@@ -45,7 +49,7 @@ app.post('/api/crawl', async (req, res) => {
         }
 
     } catch (error) {
-        console.error('Error in /api/crawl:', error);
+        console.error('❌ Error in /api/crawl:', error);
         res.status(500).json({
             error: error.message || 'An error occurred while crawling Product Hunt'
         });
@@ -58,7 +62,7 @@ app.get('/api/producthunt', async (req, res) => {
         const data = await crawlProductHunt(10); // Fetch top 10 posts
         res.json({ success: true, count: data.length, results: data });
     } catch (error) {
-        console.error('Error in Product Hunt crawl:', error);
+        console.error('❌ Error in Product Hunt crawl:', error);
         res.status(500).json({ error: error.message });
     }
 });
@@ -72,11 +76,12 @@ app.get('/', (req, res) => {
 app.listen(PORT, () => {
     console.log(`
 ╔═══════════════════════════════════════════════╗
-║   Product Hunt Crawler Server                 ║
-║   Running at: http://localhost:${PORT}         ║
+║   🧠 Product Hunt Crawler Server              ║
+║   Running at: http://localhost:${PORT}        ║
 ║                                               ║
-║   Open your browser and navigate to:         ║
-║   http://localhost:${PORT}                     ║
+║   Open your browser and navigate to:          ║
+║   👉 http://localhost:${PORT}                 ║
 ╚═══════════════════════════════════════════════╝
     `);
 });
+
