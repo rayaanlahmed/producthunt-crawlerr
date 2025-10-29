@@ -1,213 +1,176 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>🚀 Product Hunt Crawler</title>
-  <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      min-height: 100vh; padding: 20px;
-    }
-    .container { max-width: 1200px; margin: 0 auto; }
-    .header { text-align: center; color: white; margin-bottom: 30px; }
-    .header h1 { font-size: 2.5rem; margin-bottom: 10px; }
-    .header p { font-size: 1.1rem; opacity: 0.9; }
-    .card {
-      background: white; border-radius: 12px; padding: 30px;
-      box-shadow: 0 10px 30px rgba(0,0,0,0.2); margin-bottom: 20px;
-    }
-    .form-group { margin-bottom: 20px; }
-    label { display: block; font-weight: 600; margin-bottom: 8px; color: #333; }
-    .category-grid {
-      display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-      gap: 10px; margin-bottom: 15px;
-    }
-    .category-tag {
-      background: #f0f0f0; padding: 10px 15px; border-radius: 6px;
-      cursor: pointer; transition: all 0.3s; text-align: center; border: 2px solid transparent;
-    }
-    .category-tag:hover { background: #e0e0e0; }
-    .category-tag.selected {
-      background: #667eea; color: white; border-color: #5568d3;
-    }
-    input[type="number"], select {
-      width: 100%; padding: 12px; border: 2px solid #e0e0e0; border-radius: 6px;
-      font-size: 1rem; transition: border-color 0.3s;
-    }
-    input[type="number"]:focus, select:focus { outline: none; border-color: #667eea; }
-    .btn {
-      background: #667eea; color: white; padding: 15px 30px; border: none; border-radius: 6px;
-      font-size: 1.1rem; font-weight: 600; cursor: pointer; width: 100%; transition: background 0.3s;
-    }
-    .btn:hover { background: #5568d3; }
-    .btn:disabled { background: #ccc; cursor: not-allowed; }
-    .loading { display: none; text-align: center; padding: 20px; }
-    .loading.active { display: block; }
-    .spinner {
-      border: 4px solid #f3f3f3; border-top: 4px solid #667eea; border-radius: 50%;
-      width: 50px; height: 50px; animation: spin 1s linear infinite; margin: 0 auto 15px;
-    }
-    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-    .results { display: none; }
-    .results.active { display: block; }
-    .result-header {
-      display: flex; justify-content: space-between; align-items: center;
-      margin-bottom: 20px; padding-bottom: 15px; border-bottom: 2px solid #e0e0e0;
-    }
-    .download-btn {
-      background: #28a745; color: white; padding: 10px 20px;
-      border: none; border-radius: 6px; cursor: pointer; font-weight: 600;
-    }
-    .download-btn:hover { background: #218838; }
-    .product-card {
-      background: #f8f9fa; border-radius: 8px; padding: 20px; margin-bottom: 15px;
-      border-left: 4px solid #667eea; transition: transform 0.2s, box-shadow 0.2s;
-    }
-    .product-card:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
-    .product-title { font-size: 1.4rem; font-weight: 600; color: #333; margin-bottom: 10px; }
-    .product-url { color: #667eea; text-decoration: none; display: inline-block; margin-bottom: 10px; }
-    .product-url:hover { text-decoration: underline; }
-    .error {
-      background: #f8d7da; color: #721c24; padding: 15px; border-radius: 6px;
-      margin-bottom: 15px; border-left: 4px solid #f5c6cb;
-    }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AppSumo Crawler</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container { max-width: 1200px; margin: 0 auto; }
+        .header { text-align: center; color: white; margin-bottom: 30px; }
+        .header h1 { font-size: 2.5rem; margin-bottom: 10px; }
+        .header p { font-size: 1.1rem; opacity: 0.9; }
+        .card {
+            background: white; border-radius: 12px; padding: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2); margin-bottom: 20px;
+        }
+        .form-group { margin-bottom: 20px; }
+        label { display: block; font-weight: 600; margin-bottom: 8px; color: #333; }
+        .category-grid {
+            display: grid; grid-template-columns: repeat(auto-fill, minmax(150px,1fr));
+            gap: 10px; margin-bottom: 15px;
+        }
+        .category-tag {
+            background: #f0f0f0; padding: 10px 15px; border-radius: 6px;
+            cursor: pointer; transition: all 0.3s; text-align: center;
+            border: 2px solid transparent;
+        }
+        .category-tag:hover { background: #e0e0e0; }
+        .category-tag.selected { background: #667eea; color: white; border-color: #5568d3; }
+        input[type="number"], select {
+            width: 100%; padding: 12px; border: 2px solid #e0e0e0;
+            border-radius: 6px; font-size: 1rem; transition: border-color 0.3s;
+        }
+        input[type="number"]:focus, select:focus { outline: none; border-color: #667eea; }
+        .btn {
+            background: #667eea; color: white; padding: 15px 30px;
+            border: none; border-radius: 6px; font-size: 1.1rem;
+            font-weight: 600; cursor: pointer; width: 100%;
+            transition: background 0.3s;
+        }
+        .btn:hover { background: #5568d3; }
+        .btn:disabled { background: #ccc; cursor: not-allowed; }
+        .loading { display: none; text-align: center; padding: 20px; }
+        .loading.active { display: block; }
+        .spinner {
+            border: 4px solid #f3f3f3; border-top: 4px solid #667eea;
+            border-radius: 50%; width: 50px; height: 50px;
+            animation: spin 1s linear infinite; margin: 0 auto 15px;
+        }
+        @keyframes spin { 0%{transform:rotate(0deg);} 100%{transform:rotate(360deg);} }
+        .results { display: none; }
+        .results.active { display: block; }
+        .result-header {
+            display: flex; justify-content: space-between; align-items: center;
+            margin-bottom: 20px; padding-bottom: 15px; border-bottom: 2px solid #e0e0e0;
+        }
+        .result-count { font-size: 1.3rem; font-weight: 600; color: #333; }
+        .download-btn {
+            background: #28a745; color: white; padding: 10px 20px;
+            border: none; border-radius: 6px; cursor: pointer; font-weight: 600;
+        }
+        .download-btn:hover { background: #218838; }
+        .product-card {
+            background: #f8f9fa; border-radius: 8px; padding: 20px;
+            margin-bottom: 15px; border-left: 4px solid #667eea;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .product-card:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+        .product-title { font-size: 1.4rem; font-weight: 600; color: #333; margin-bottom: 10px; }
+        .product-url { color: #667eea; text-decoration: none; font-size: 0.9rem; display: inline-block; margin-bottom: 10px; }
+        .product-url:hover { text-decoration: underline; }
+        .product-meta { display: flex; flex-wrap: wrap; gap: 15px; margin: 15px 0; font-size: 0.95rem; }
+        .meta-item { display: flex; align-items: center; gap: 5px; }
+        .meta-item strong { color: #667eea; }
+        .product-categories { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0; }
+        .category-badge { background: #667eea; color: white; padding: 4px 12px; border-radius: 12px; font-size: 0.85rem; }
+        .product-description { color: #666; line-height: 1.6; margin-top: 10px; }
+        .error {
+            background: #f8d7da; color: #721c24; padding: 15px;
+            border-radius: 6px; margin-bottom: 15px; border-left: 4px solid #f5c6cb;
+        }
+    </style>
 </head>
 <body>
-  <div class="container">
-    <div class="header">
-      <h1>🚀 Product Hunt Crawler</h1>
-      <p>Discover trending startups and AI tools by topic</p>
-    </div>
-
-    <div class="card">
-      <form id="crawlForm">
-        <div class="form-group">
-          <label>Select Topic:</label>
-          <div class="category-grid" id="categoryGrid">
-            <div class="category-tag" data-category="artificial-intelligence">Artificial Intelligence</div>
-            <div class="category-tag" data-category="developer-tools">Developer Tools</div>
-            <div class="category-tag" data-category="design-tools">Design Tools</div>
-            <div class="category-tag" data-category="marketing">Marketing</div>
-            <div class="category-tag" data-category="productivity">Productivity</div>
-            <div class="category-tag" data-category="finance">Finance</div>
-            <div class="category-tag" data-category="education">Education</div>
-            <div class="category-tag" data-category="healthtech">Health & Fitness</div>
-            <div class="category-tag" data-category="web3">Web3</div>
-            <div class="category-tag" data-category="startups">Startups</div>
-          </div>
+    <div class="container">
+        <div class="header">
+            <h1>🚀 AppSumo Product Crawler</h1>
+            <p>Find interesting products based on categories</p>
         </div>
 
-        <div class="form-group">
-          <label for="maxPages">Maximum Products to Scrape:</label>
-          <input type="number" id="maxPages" name="maxPages" value="30" min="1" max="100" />
+        <div class="card">
+            <form id="crawlForm">
+                <div class="form-group">
+                    <label>Select Category:</label>
+                    <div class="category-grid" id="categoryGrid">
+                        <div class="category-tag" data-category="Operations">Operations</div>
+                        <div class="category-tag" data-category="Marketing & sales">Marketing & sales</div>
+                        <div class="category-tag" data-category="Build it yourself">Build it yourself</div>
+                        <div class="category-tag" data-category="Media tools">Media tools</div>
+                        <div class="category-tag" data-category="Finance">Finance</div>
+                        <div class="category-tag" data-category="Development & IT">Development & IT</div>
+                        <div class="category-tag" data-category="Customer experience">Customer experience</div>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="maxPages">Maximum Products to Scrape:</label>
+                    <input type="number" id="maxPages" name="maxPages" value="30" min="1" max="100">
+                </div>
+
+                <div class="form-group">
+                    <label for="sortBy">Sort By:</label>
+                    <select id="sortBy" name="sortBy">
+                        <option value="">Default</option>
+                        <option value="recommended">Recommended</option>
+                        <option value="rating">Highest Rating</option>
+                        <option value="latest">Latest Deals</option>
+                        <option value="review_count">Most Reviews</option>
+                        <option value="popularity">Most Popular</option>
+                        <option value="newest">Newest First</option>
+                        <option value="price_low">Price: Low to High</option>
+                        <option value="price_high">Price: High to Low</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="crawlMode">Crawl Mode:</label>
+                    <select id="crawlMode" name="crawlMode">
+                        <option value="fast">Fast Mode (Main content only - faster, may miss some data)</option>
+                        <option value="complete">Complete Mode (All content - slower, more accurate)</option>
+                    </select>
+                    <p style="font-size:0.85rem;color:#666;margin-top:5px;">
+                        💡 Tip: Start with Fast mode, then recrawl selected products in Complete mode if needed
+                    </p>
+                </div>
+
+                <button type="submit" class="btn" id="crawlBtn">Start Crawling</button>
+            </form>
         </div>
 
-        <button type="submit" class="btn" id="crawlBtn">Start Crawling</button>
-      </form>
-    </div>
-
-    <div class="loading" id="loading">
-      <div class="card">
-        <div class="spinner"></div>
-        <p id="loadingText">🚀 Crawling Product Hunt... Please wait.</p>
-      </div>
-    </div>
-
-    <div class="results" id="results">
-      <div class="card">
-        <div class="result-header">
-          <div class="result-count" id="resultCount">Found 0 products</div>
-          <div>
-            <button class="download-btn" id="restartBtn" style="background:#dc3545;margin-right:10px;">New Search</button>
-            <button class="download-btn" id="downloadJsonBtn">Download JSON</button>
-          </div>
+        <div class="loading" id="loading">
+            <div class="card">
+                <div class="spinner"></div>
+                <p id="loadingText">Crawling AppSumo... This may take a few minutes.</p>
+                <div style="width:100%;background:#e0e0e0;border-radius:10px;height:30px;overflow:hidden;margin-bottom:15px;">
+                    <div id="progressBar" style="width:0%;height:100%;background:linear-gradient(90deg,#667eea 0%,#764ba2 100%);transition:width 0.3s ease;display:flex;align-items:center;justify-content:center;color:white;font-weight:bold;font-size:0.9rem;">0%</div>
+                </div>
+                <p id="progressDetails" style="text-align:center;color:#888;font-size:0.9rem;"></p>
+            </div>
         </div>
-        <div id="productList"></div>
-      </div>
-    </div>
-  </div>
 
-  <script>
-    const categoryGrid = document.getElementById('categoryGrid');
-    const crawlForm = document.getElementById('crawlForm');
-    const results = document.getElementById('results');
-    const loading = document.getElementById('loading');
-    const productList = document.getElementById('productList');
-    const restartBtn = document.getElementById('restartBtn');
-    const downloadJsonBtn = document.getElementById('downloadJsonBtn');
-
-    let selectedCategories = [];
-    let currentProducts = [];
-
-    // ✅ Category selection
-    categoryGrid.addEventListener('click', (e) => {
-      if (e.target.classList.contains('category-tag')) {
-        e.target.classList.toggle('selected');
-        const category = e.target.dataset.category;
-        selectedCategories = e.target.classList.contains('selected')
-          ? [...selectedCategories, category]
-          : selectedCategories.filter(c => c !== category);
-      }
-    });
-
-    // ✅ Form submission
-    crawlForm.addEventListener('submit', (e) => {
-      e.preventDefault();
-      loading.classList.add('active');
-      results.classList.remove('active');
-      productList.innerHTML = '';
-      currentProducts = [];
-
-      // Simulate fetch
-      setTimeout(() => {
-        loading.classList.remove('active');
-        results.classList.add('active');
-        currentProducts = selectedCategories.map((cat, i) => ({
-          name: `Example ${cat} Tool ${i+1}`,
-          url: 'https://www.producthunt.com',
-          description: `Sample description for ${cat}`
-        }));
-        displayResults(currentProducts);
-      }, 1000);
-    });
-
-    // ✅ Display results
-    function displayResults(products) {
-      productList.innerHTML = products.map(p => `
-        <div class="product-card">
-          <div class="product-title">${p.name}</div>
-          <a href="${p.url}" class="product-url" target="_blank">${p.url}</a>
-          <p>${p.description}</p>
+        <div class="results" id="results">
+            <div class="card">
+                <div class="result-header">
+                    <div class="result-count" id="resultCount">Found 0 products</div>
+                    <div>
+                        <button class="download-btn" id="recrawlBtn" style="background:#28a745;margin-right:10px;display:none;">Recrawl Selected (Complete Mode)</button>
+                        <button class="download-btn" id="restartBtn" style="background:#dc3545;margin-right:10px;">New Search</button>
+                        <button class="download-btn" id="downloadJsonBtn" style="margin-right:10px;">Download JSON</button>
+                        <button class="download-btn" id="downloadMdBtn" style="background:#17a2b8;">Download Markdown</button>
+                    </div>
+                </div>
+                <div id="productList"></div>
+            </div>
         </div>
-      `).join('');
-      document.getElementById('resultCount').textContent = `Found ${products.length} product${products.length!==1?'s':''}`;
-    }
+    </div>
 
-    // ✅ Restart
-    restartBtn.addEventListener('click', () => {
-      results.classList.remove('active');
-      selectedCategories = [];
-      document.querySelectorAll('.category-tag.selected').forEach(tag => tag.classList.remove('selected'));
-      document.getElementById('maxPages').value = 30;
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    });
-
-    // ✅ Download JSON
-    downloadJsonBtn.addEventListener('click', () => {
-      const dataStr = JSON.stringify(currentProducts, null, 2);
-      const blob = new Blob([dataStr], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `producthunt_${new Date().toISOString().split('T')[0]}.json`;
-      link.click();
-      URL.revokeObjectURL(url);
-    });
-  </script>
+    <script src="./frontend.js"></script>
 </body>
 </html>
-
