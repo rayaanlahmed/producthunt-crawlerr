@@ -16,22 +16,22 @@ app.use(express.static('public'));
 // API endpoint for crawling Product Hunt
 app.post('/api/crawl', async (req, res) => {
     try {
-        // ✅ FIXED: match frontend request body
-        const { maxPages = 10, categories = [] } = req.body;
+        // ✅ NEW: Capture categories (topics) and limit from frontend
+        const { limit = 10, categories = [] } = req.body;
         const topic = categories.length > 0 ? categories[0] : null;
-        const limit = maxPages;
 
         // Setup Server-Sent Events
         res.setHeader('Content-Type', 'text/event-stream');
         res.setHeader('Cache-Control', 'no-cache');
         res.setHeader('Connection', 'keep-alive');
 
-        console.log(`🚀 Starting Product Hunt crawl... Topic: ${topic || 'Trending'}`);
+        console.log(`🚀 Starting Product Hunt crawl... Topic: ${topic || "Trending"}`);
 
         try {
-            // Pass topic to the crawler
+            // ✅ Pass topic to crawler
             const products = await crawlProductHunt(limit, topic);
 
+            // Send data to frontend
             res.write(`data: ${JSON.stringify({
                 type: 'complete',
                 success: true,
@@ -49,7 +49,7 @@ app.post('/api/crawl', async (req, res) => {
         }
 
     } catch (error) {
-        console.error('❌ Error in /api/crawl:', error);
+        console.error('Error in /api/crawl:', error);
         res.status(500).json({
             error: error.message || 'An error occurred while crawling Product Hunt'
         });
@@ -62,7 +62,7 @@ app.get('/api/producthunt', async (req, res) => {
         const data = await crawlProductHunt(10); // Fetch top 10 posts
         res.json({ success: true, count: data.length, results: data });
     } catch (error) {
-        console.error('❌ Error in Product Hunt crawl:', error);
+        console.error('Error in Product Hunt crawl:', error);
         res.status(500).json({ error: error.message });
     }
 });
@@ -76,11 +76,11 @@ app.get('/', (req, res) => {
 app.listen(PORT, () => {
     console.log(`
 ╔═══════════════════════════════════════════════╗
-║   🧠 Product Hunt Crawler Server              ║
-║   Running at: http://localhost:${PORT}        ║
+║   Product Hunt Crawler Server                 ║
+║   Running at: http://localhost:${PORT}         ║
 ║                                               ║
 ║   Open your browser and navigate to:          ║
-║   👉 http://localhost:${PORT}                 ║
+║   http://localhost:${PORT}                    ║
 ╚═══════════════════════════════════════════════╝
     `);
 });
