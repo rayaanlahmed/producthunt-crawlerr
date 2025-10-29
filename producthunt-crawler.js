@@ -75,17 +75,23 @@ export async function crawlProductHunt(limit = 10, topic = null) {
 
   const data = await response.json();
 
-  let posts = [];
+   let posts = [];
 
-  // Handle both cases — with topic or general trending
-  if (topicSlug && data.data.topic) {
-    posts = data.data.topic.posts.edges.map(({ node }) => node);
-  } else if (data.data.posts) {
+  // ✅ Defensive checks to avoid “Cannot read properties of undefined”
+  if (topicSlug) {
+    if (data?.data?.topic?.posts?.edges?.length) {
+      posts = data.data.topic.posts.edges.map(({ node }) => node);
+    } else {
+      console.log(`⚠️ No posts found for topic: ${topicSlug}`);
+      return [];
+    }
+  } else if (data?.data?.posts?.edges?.length) {
     posts = data.data.posts.edges.map(({ node }) => node);
   } else {
-    console.log("⚠️ No posts found for topic:", topicSlug);
+    console.log("⚠️ No posts field returned by Product Hunt");
     return [];
   }
+
 
   // Format data for frontend
   const formatted = posts.map((node) => ({
