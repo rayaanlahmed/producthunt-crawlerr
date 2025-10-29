@@ -362,499 +362,192 @@
     </div>
 
     <script>
-        const categoryGrid = document.getElementById('categoryGrid');
-        const crawlForm = document.getElementById('crawlForm');
-        const loading = document.getElementById('loading');
-        const results = document.getElementById('results');
-        const productList = document.getElementById('productList');
-        const resultCount = document.getElementById('resultCount');
-        const downloadJsonBtn = document.getElementById('downloadJsonBtn');
-        const downloadMdBtn = document.getElementById('downloadMdBtn');
-        const restartBtn = document.getElementById('restartBtn');
-        const crawlBtn = document.getElementById('crawlBtn');
+    const categoryGrid = document.getElementById('categoryGrid');
+    const crawlForm = document.getElementById('crawlForm');
+    const loading = document.getElementById('loading');
+    const results = document.getElementById('results');
+    const productList = document.getElementById('productList');
+    const resultCount = document.getElementById('resultCount');
+    const downloadJsonBtn = document.getElementById('downloadJsonBtn');
+    const downloadMdBtn = document.getElementById('downloadMdBtn');
+    const restartBtn = document.getElementById('restartBtn');
+    const crawlBtn = document.getElementById('crawlBtn');
 
-        let selectedCategories = [];
-        let currentProducts = [];
-        let rateLimitedProducts = [];
+    let selectedCategories = [];
+    let currentProducts = [];
+    let rateLimitedProducts = [];
 
-        // Category selection
-        categoryGrid.addEventListener('click', (e) => {
-            if (e.target.classList.contains('category-tag')) {
-                e.target.classList.toggle('selected');
-                const category = e.target.dataset.category;
+    // ✅ Category selection
+    categoryGrid.addEventListener('click', (e) => {
+        if (e.target.classList.contains('category-tag')) {
+            e.target.classList.toggle('selected');
+            const category = e.target.dataset.category;
 
-                if (selectedCategories.includes(category)) {
-                    selectedCategories = selectedCategories.filter(c => c !== category);
-                } else {
-                    selectedCategories.push(category);
-                }
-            }
-        });
-
-        // Form submission with Server-Sent Events for progressive results
-        crawlForm.addEventListener('submit', async (e) => {
-            e.preventDefault();
-
-            const maxPages = parseInt(document.getElementById('maxPages').value);
-            const sortBy = document.getElementById('sortBy').value || null;
-            const crawlMode = document.getElementById('crawlMode').value;
-
-            // Show loading, hide results
-            loading.classList.add('active');
-            results.classList.remove('active');
-            crawlBtn.disabled = true;
-
-            // Reset current data
-            currentProducts = [];
-            rateLimitedProducts = [];
-
-            try {
-                const response = await fetch('/api/crawl', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                        categories: selectedCategories,
-                        maxPages: maxPages,
-                        sortBy: sortBy,
-                        crawlMode: crawlMode
-                    })
-                });
-
-                // Handle Server-Sent Events
-                const reader = response.body.getReader();
-                const decoder = new TextDecoder();
-                let buffer = '';
-
-                while (true) {
-                    const { value, done } = await reader.read();
-                    if (done) break;
-
-                    buffer += decoder.decode(value, { stream: true });
-                    const lines = buffer.split('\n');
-
-                    // Process complete lines
-                    for (let i = 0; i < lines.length - 1; i++) {
-                        const line = lines[i];
-                        if (line.startsWith('data: ')) {
-                            const jsonData = JSON.parse(line.slice(6));
-
-                            if (jsonData.type === 'progress') {
-                                // Update progress bar for sub-batches
-                                const progressBar = document.getElementById('progressBar');
-                                const loadingText = document.getElementById('loadingText');
-                                const progressDetails = document.getElementById('progressDetails');
-
-                                // Calculate overall progress: (completed super-batches + current mini-batch progress) / total super-batches
-                                const completedSuperBatches = jsonData.superBatchNumber - 1;
-                                const currentSuperBatchProgress = jsonData.miniBatchNumber / jsonData.totalMiniBatches;
-                                const totalProgress = Math.round(((completedSuperBatches + currentSuperBatchProgress) / jsonData.totalSuperBatches) * 100);
-
-                                if (progressBar) {
-                                    progressBar.style.width = `${totalProgress}%`;
-                                    progressBar.textContent = `${totalProgress}%`;
-                                }
-
-                                if (loadingText) {
-                                    loadingText.textContent = `Super-Batch ${jsonData.superBatchNumber}/${jsonData.totalSuperBatches} - Scraping...`;
-                                }
-
-                                if (progressDetails) {
-                                    progressDetails.textContent = `Mini-batch ${jsonData.miniBatchNumber}/${jsonData.totalMiniBatches}: ${jsonData.productsScraped}/${jsonData.totalInSuperBatch} products scraped in this batch`;
-                                }
-                            } else if (jsonData.type === 'batch') {
-                                // Update with new batch results
-                                currentProducts = [...currentProducts, ...jsonData.products];
-                                rateLimitedProducts = [...rateLimitedProducts, ...jsonData.rateLimited];
-
-                                // Show results immediately
-                                results.classList.add('active');
-                                displayResults(currentProducts, rateLimitedProducts);
-
-                                // Calculate progress percentage
-                                const progress = Math.round((jsonData.batchNumber / jsonData.totalBatches) * 100);
-
-                                // Update progress bar
-                                const progressBar = document.getElementById('progressBar');
-                                const loadingText = document.getElementById('loadingText');
-                                const progressDetails = document.getElementById('progressDetails');
-
-                                if (progressBar) {
-                                    progressBar.style.width = `${progress}%`;
-                                    progressBar.textContent = `${progress}%`;
-                                }
-
-                                if (loadingText) {
-                                    loadingText.textContent = `Batch ${jsonData.batchNumber}/${jsonData.totalBatches} complete! 🎉`;
-                                }
-
-                                if (progressDetails) {
-                                    const failedCount = jsonData.totalRateLimited;
-                                    progressDetails.textContent = `✓ ${jsonData.totalProducts} products scraped successfully${failedCount > 0 ? ` | ⚠️ ${failedCount} failed/rate-limited` : ''}. ${jsonData.batchNumber < jsonData.totalBatches ? 'Next batch starting soon...' : 'Almost done!'}`;
-                                }
-                            } else if (jsonData.type === 'complete') {
-                                // Final results
-                                currentProducts = jsonData.products;
-                                rateLimitedProducts = jsonData.rateLimited;
-                                displayResults(currentProducts, rateLimitedProducts);
-                            } else if (jsonData.type === 'error') {
-                                throw new Error(jsonData.error);
-                            }
-                        }
-                    }
-
-                    // Keep incomplete line in buffer
-                    buffer = lines[lines.length - 1];
-                }
-
-            } catch (error) {
-                productList.innerHTML = `<div class="error">Error: ${error.message}</div>`;
-                results.classList.add('active');
-            } finally {
-                loading.classList.remove('active');
-                crawlBtn.disabled = false;
-            }
-        });
-
- // Display results
-function displayResults(products, rateLimited = []) {
-    resultCount.textContent = `Found ${products.length} product${products.length !== 1 ? 's' : ''}`;
-
-    let html = '';
-
-    if (rateLimited && rateLimited.length > 0) {
-        html += `
-            <div style="background: #fff3cd; border: 2px solid #ffc107; border-radius: 8px; padding: 20px; margin-bottom: 20px;">
-                <h3 style="margin: 0 0 10px 0; color: #856404;">⚠️ ${rateLimited.length} Product(s) Rate Limited</h3>
-                <p style="margin: 0 0 15px 0; color: #856404;">The following products couldn't be scraped due to rate limiting:</p>
-                <ul style="margin: 0 0 15px 0; color: #856404;">
-                    ${rateLimited.map(item => `<li>${item.name}</li>`).join('')}
-                </ul>
-                <button id="retryBtn" class="download-btn" style="background: #ffc107; color: #000;">
-                    Retry in 60 seconds
-                </button>
-            </div>
-        `;
-    }
-
-    if (products.length === 0) {
-        html += '<p style="text-align:center; color:#666; padding:20px;">No products found matching your criteria.</p>';
-    } else {
-        html += products.map((product, index) => `
-            <div class="product-card">
-                <div class="product-title">${escapeHtml(product.name)}</div>
-                <a href="${escapeHtml(product.producthunt_url || product.url)}" target="_blank" class="product-url">
-                    ${escapeHtml(product.url || product.producthunt_url)}
-                </a>
-
-                ${product.tagline ? `<div class="product-description"><strong>Tagline:</strong> ${escapeHtml(product.tagline)}</div>` : ''}
-                ${product.description ? `<div class="product-description"><strong>Description:</strong> ${escapeHtml(product.description)}</div>` : ''}
-
-                <div class="product-meta">
-                    ${product.votes ? `<div class="meta-item"><strong>Votes:</strong> ${product.votes}</div>` : ''}
-                    ${product.launchDate ? `<div class="meta-item"><strong>Launched:</strong> ${new Date(product.launchDate).toLocaleDateString()}</div>` : ''}
-                </div>
-
-                ${product.topics ? `
-                    <div class="product-categories">
-                        ${product.topics.split(',').map(cat => `<span class="category-badge">${escapeHtml(cat.trim())}</span>`).join('')}
-                    </div>
-                ` : ''}
-
-                ${product.score !== undefined ? `
-                    <div class="product-score" style="margin-top:10px; font-weight:600; color:#4B0082;">
-                        🧠 AI Evaluation Score: ${product.score}/100
-                    </div>
-                ` : ''}
-            </div>
-        `).join('');
-    }
-
-    productList.innerHTML = html;
-    results.classList.add('active');
-}
-
-
-            if (products.length === 0) {
-                html += '<p style="text-align: center; color: #666; padding: 20px;">No products found matching your criteria.</p>';
+            if (selectedCategories.includes(category)) {
+                selectedCategories = selectedCategories.filter(c => c !== category);
             } else {
-                html += products.map((product, index) => `
-                    <div class="product-card">
-                        <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px;">
-                            <input type="checkbox" class="product-checkbox" data-index="${index}" data-url="${escapeHtml(product.url)}" style="width: 18px; height: 18px; cursor: pointer;">
-                            <div class="product-title" style="margin: 0;">${escapeHtml(product.name)}</div>
-                        </div>
-                        <a href="${escapeHtml(product.url)}" target="_blank" class="product-url">${escapeHtml(product.url)}</a>
-
-                        ${product.summary ? `
-                            <div class="product-description" style="margin-top: 10px; margin-bottom: 10px;"><strong>Summary:</strong> ${escapeHtml(product.summary)}</div>
-                        ` : ''}
-
-                        <div class="product-meta">
-                            ${product.rating ? `<div class="meta-item"><strong>Rating:</strong> ${product.rating}/5 ⭐</div>` : ''}
-                            ${product.reviews ? `<div class="meta-item"><strong>Reviews:</strong> ${product.reviews}</div>` : ''}
-                            ${product.pricing?.lifetime ? `<div class="meta-item"><strong>Lifetime Price:</strong> ${escapeHtml(product.pricing.lifetime)}</div>` : ''}
-                            ${product.foundingDate ? `<div class="meta-item"><strong>Founded:</strong> ${escapeHtml(product.foundingDate)}</div>` : ''}
-                        </div>
-
-                        ${product.homepage ? `
-                            <div style="margin: 10px 0;">
-                                <strong>Homepage:</strong> <a href="${escapeHtml(product.homepage)}" target="_blank" style="color: #667eea;">${escapeHtml(product.homepage)}</a>
-                            </div>
-                        ` : ''}
-
-                        ${product.founder || product.founderLinkedIn || product.founderAppSumoProfile ? `
-                            <div style="margin: 10px 0;">
-                                <strong>Founder:</strong> ${escapeHtml(product.founder || 'N/A')}
-                                ${product.founderLinkedIn ? ` - <a href="${escapeHtml(product.founderLinkedIn)}" target="_blank" style="color: #0077B5;">LinkedIn</a>` : ''}
-                                ${product.founderAppSumoProfile ? ` - <a href="${escapeHtml(product.founderAppSumoProfile)}" target="_blank" style="color: #667eea;">AppSumo Profile</a>` : ''}
-                            </div>
-                        ` : ''}
-
-                        ${product.pricing && product.pricing.tiers && product.pricing.tiers.length > 0 ? `
-                            <div style="margin: 10px 0;">
-                                <strong>Pricing Tiers:</strong> ${product.pricing.tiers.map(t => `Tier ${t.tier}: ${escapeHtml(t.price)}`).join(', ')}
-                            </div>
-                        ` : ''}
-
-                        ${product.categories && product.categories.length > 0 ? `
-                            <div class="product-categories">
-                                ${product.categories.map(cat => `<span class="category-badge">${escapeHtml(cat)}</span>`).join('')}
-                            </div>
-                        ` : ''}
-                    </div>
-                `).join('');
+                selectedCategories.push(category);
             }
+        }
+    });
 
-            productList.innerHTML = html;
-            results.classList.add('active');
+    // ✅ Crawl form submission
+    crawlForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
 
-            // Add checkbox event listeners to show/hide recrawl button
-            const checkboxes = document.querySelectorAll('.product-checkbox');
-            const recrawlBtn = document.getElementById('recrawlBtn');
+        const maxPages = parseInt(document.getElementById('maxPages').value);
+        const sortBy = document.getElementById('sortBy').value || null;
+        const crawlMode = document.getElementById('crawlMode').value;
 
-            checkboxes.forEach(checkbox => {
-                checkbox.addEventListener('change', () => {
-                    const anyChecked = Array.from(checkboxes).some(cb => cb.checked);
-                    if (recrawlBtn) {
-                        recrawlBtn.style.display = anyChecked ? 'inline-block' : 'none';
-                    }
-                });
+        loading.classList.add('active');
+        results.classList.remove('active');
+        crawlBtn.disabled = true;
+
+        currentProducts = [];
+        rateLimitedProducts = [];
+
+        try {
+            const response = await fetch('/api/crawl', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    categories: selectedCategories,
+                    maxPages: maxPages,
+                    sortBy: sortBy,
+                    crawlMode: crawlMode
+                })
             });
 
-            // Add retry button listener if there are rate-limited products
-            if (rateLimited && rateLimited.length > 0) {
-                const retryBtn = document.getElementById('retryBtn');
-                if (retryBtn) {
-                    retryBtn.addEventListener('click', async () => {
-                        retryBtn.disabled = true;
-                        retryBtn.textContent = 'Waiting 60 seconds...';
+            const reader = response.body.getReader();
+            const decoder = new TextDecoder();
+            let buffer = '';
 
-                        try {
-                            const urls = rateLimited.map(item => item.url);
+            while (true) {
+                const { value, done } = await reader.read();
+                if (done) break;
 
-                            const response = await fetch('/api/retry', {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({ urls })
-                            });
+                buffer += decoder.decode(value, { stream: true });
+                const lines = buffer.split('\n');
 
-                            const data = await response.json();
+                for (let i = 0; i < lines.length - 1; i++) {
+                    const line = lines[i];
+                    if (line.startsWith('data: ')) {
+                        const jsonData = JSON.parse(line.slice(6));
 
-                            if (data.error) {
-                                throw new Error(data.error);
-                            }
-
-                            // Merge retried products with existing ones
-                            currentProducts = [...currentProducts, ...data.products];
-                            rateLimitedProducts = [];
-
-                            // Re-display with merged results
-                            displayResults(currentProducts, []);
-                            resultCount.textContent = `Found ${currentProducts.length} product${currentProducts.length !== 1 ? 's' : ''}`;
-
-                        } catch (error) {
-                            alert('Retry failed: ' + error.message);
-                            retryBtn.disabled = false;
-                            retryBtn.textContent = 'Retry in 60 seconds';
+                        if (jsonData.type === 'complete') {
+                            currentProducts = jsonData.products;
+                            displayResults(currentProducts);
+                        } else if (jsonData.type === 'error') {
+                            throw new Error(jsonData.error);
                         }
-                    });
+                    }
                 }
+                buffer = lines[lines.length - 1];
             }
+        } catch (error) {
+            productList.innerHTML = `<div class="error">Error: ${error.message}</div>`;
+            results.classList.add('active');
+        } finally {
+            loading.classList.remove('active');
+            crawlBtn.disabled = false;
+        }
+    });
+
+    // ✅ Display results
+    function displayResults(products, rateLimited = []) {
+        resultCount.textContent = `Found ${products.length} product${products.length !== 1 ? 's' : ''}`;
+        let html = '';
+
+        if (rateLimited && rateLimited.length > 0) {
+            html += `
+                <div style="background:#fff3cd;border:2px solid #ffc107;border-radius:8px;padding:20px;margin-bottom:20px;">
+                    <h3 style="margin:0 0 10px 0;color:#856404;">⚠️ ${rateLimited.length} Product(s) Rate Limited</h3>
+                    <ul>${rateLimited.map(item => `<li>${item.name}</li>`).join('')}</ul>
+                </div>`;
         }
 
-        // Restart button - reset everything
-        // Recrawl selected products in complete mode
-        document.getElementById('recrawlBtn').addEventListener('click', async () => {
-            const checkboxes = document.querySelectorAll('.product-checkbox:checked');
-            const selectedUrls = Array.from(checkboxes).map(cb => cb.dataset.url);
-
-            if (selectedUrls.length === 0) {
-                alert('Please select products to recrawl');
-                return;
-            }
-
-            const recrawlBtn = document.getElementById('recrawlBtn');
-            recrawlBtn.disabled = true;
-            recrawlBtn.textContent = `Recrawling ${selectedUrls.length} products...`;
-
-            try {
-                const response = await fetch('/api/recrawl', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ urls: selectedUrls })
-                });
-
-                if (!response.ok) {
-                    const errorData = await response.json();
-                    throw new Error(errorData.error || 'Failed to recrawl products');
-                }
-
-                const data = await response.json();
-
-                // Update currentProducts with recrawled data
-                data.products.forEach(newProduct => {
-                    const index = currentProducts.findIndex(p => p.url === newProduct.url);
-                    if (index !== -1) {
-                        currentProducts[index] = newProduct;
-                    }
-                });
-
-                // Re-display results
-                displayResults(currentProducts, rateLimitedProducts);
-
-                // Uncheck all checkboxes and hide button
-                document.querySelectorAll('.product-checkbox').forEach(cb => cb.checked = false);
-                recrawlBtn.style.display = 'none';
-                recrawlBtn.disabled = false;
-                recrawlBtn.textContent = 'Recrawl Selected (Complete Mode)';
-
-                alert(`Successfully recrawled ${data.products.length} products in Complete Mode!`);
-            } catch (error) {
-                alert('Recrawl failed: ' + error.message);
-                recrawlBtn.disabled = false;
-                recrawlBtn.textContent = 'Recrawl Selected (Complete Mode)';
-            }
-        });
-
-        restartBtn.addEventListener('click', () => {
-            // Clear results
-            results.classList.remove('active');
-            currentProducts = [];
-
-            // Clear selected categories
-            selectedCategories = [];
-            document.querySelectorAll('.category-tag.selected').forEach(tag => {
-                tag.classList.remove('selected');
-            });
-
-            // Reset form
-            document.getElementById('maxPages').value = 30;
-
-            // Scroll to top
-            window.scrollTo({ top: 0, behavior: 'smooth' });
-        });
-
-        // Download JSON
-        downloadJsonBtn.addEventListener('click', () => {
-            const dataStr = JSON.stringify(currentProducts, null, 2);
-            const dataBlob = new Blob([dataStr], { type: 'application/json' });
-            const url = URL.createObjectURL(dataBlob);
-            const link = document.createElement('a');
-            link.href = url;
-            link.download = `appsumo_products_${new Date().toISOString().split('T')[0]}.json`;
-            link.click();
-            URL.revokeObjectURL(url);
-        });
-
-        // Download Markdown
-        downloadMdBtn.addEventListener('click', () => {
-            const markdown = generateMarkdown(currentProducts);
-            const dataBlob = new Blob([markdown], { type: 'text/markdown' });
-            const url = URL.createObjectURL(dataBlob);
-            const link = document.createElement('a');
-            link.href = url;
-            link.download = `appsumo_products_${new Date().toISOString().split('T')[0]}.md`;
-            link.click();
-            URL.revokeObjectURL(url);
-        });
-
-        // Generate Markdown format
-        function generateMarkdown(products) {
-            let md = `# Product hunt Results\n\n`;
-            md += `**Date:** ${new Date().toLocaleDateString()}\n`;
-            md += `**Total Products:** ${products.length}\n\n`;
-            md += `---\n\n`;
-
-            products.forEach((product, index) => {
-                md += `## ${index + 1}. ${product.name}\n\n`;
-                md += `**AppSumo URL:** [${product.url}](${product.url})\n\n`;
-
-                if (product.summary) {
-                    md += `**Summary:** ${product.summary}\n\n`;
-                }
-
-                if (product.homepage) {
-                    md += `**Homepage:** [${product.homepage}](${product.homepage})\n\n`;
-                }
-
-                const metaItems = [];
-                if (product.rating) metaItems.push(`**Rating:** ${product.rating}/5 ⭐`);
-                if (product.reviews) metaItems.push(`**Reviews:** ${product.reviews}`);
-
-                if (metaItems.length > 0) {
-                    md += metaItems.join(' | ') + '\n\n';
-                }
-
-                if (product.pricing?.lifetime) {
-                    md += `**Lifetime Price:** ${product.pricing.lifetime}`;
-                    if (product.pricing.regular) {
-                        md += ` (Regular: ${product.pricing.regular})`;
-                    }
-                    md += '\n\n';
-                }
-
-                if (product.pricing?.tiers && product.pricing.tiers.length > 0) {
-                    md += `**Pricing Tiers:**\n`;
-                    product.pricing.tiers.forEach(tier => {
-                        md += `- Tier ${tier.tier}: ${tier.price}\n`;
-                    });
-                    md += '\n';
-                }
-
-                if (product.founder || product.founderLinkedIn || product.founderAppSumoProfile) {
-                    md += `**Founder:** ${product.founder || 'N/A'}`;
-                    if (product.founderLinkedIn) {
-                        md += ` ([LinkedIn](${product.founderLinkedIn}))`;
-                    }
-                    if (product.founderAppSumoProfile) {
-                        md += ` ([AppSumo Profile](${product.founderAppSumoProfile}))`;
-                    }
-                    md += '\n\n';
-                }
-
-                if (product.foundingDate) {
-                    md += `**Founded:** ${product.foundingDate}\n\n`;
-                }
-
-                if (product.categories && product.categories.length > 0) {
-                    md += `**Categories:** ${product.categories.map(c => '`' + c + '`').join(' ')}\n\n`;
-                }
-
-                md += `---\n\n`;
-            });
-
-            md += `*Generated by AppSumo Crawler*\n`;
-            return md;
+        if (products.length === 0) {
+            html += `<p style="text-align:center;color:#666;padding:20px;">No products found matching your criteria.</p>`;
+        } else {
+            html += products.map(product => `
+                <div class="product-card">
+                    <div class="product-title">${escapeHtml(product.name)}</div>
+                    <a href="${escapeHtml(product.producthunt_url || product.url)}" target="_blank" class="product-url">
+                        ${escapeHtml(product.url || product.producthunt_url)}
+                    </a>
+                    ${product.tagline ? `<div class="product-description"><strong>Tagline:</strong> ${escapeHtml(product.tagline)}</div>` : ''}
+                    ${product.description ? `<div class="product-description"><strong>Description:</strong> ${escapeHtml(product.description)}</div>` : ''}
+                    <div class="product-meta">
+                        ${product.votes ? `<div class="meta-item"><strong>Votes:</strong> ${product.votes}</div>` : ''}
+                        ${product.launchDate ? `<div class="meta-item"><strong>Launched:</strong> ${new Date(product.launchDate).toLocaleDateString()}</div>` : ''}
+                    </div>
+                    ${product.topics ? `
+                        <div class="product-categories">
+                            ${product.topics.split(',').map(cat => `<span class="category-badge">${escapeHtml(cat.trim())}</span>`).join('')}
+                        </div>` : ''}
+                </div>`).join('');
         }
 
-        // Helper function to escape HTML
-        function escapeHtml(text) {
-            const div = document.createElement('div');
-            div.textContent = text;
-            return div.innerHTML;
-        }
-    </script>
+        productList.innerHTML = html;
+        results.classList.add('active');
+    }
+
+    // ✅ Restart
+    restartBtn.addEventListener('click', () => {
+        results.classList.remove('active');
+        currentProducts = [];
+        selectedCategories = [];
+        document.querySelectorAll('.category-tag.selected').forEach(tag => tag.classList.remove('selected'));
+        document.getElementById('maxPages').value = 30;
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    });
+
+    // ✅ Download JSON
+    downloadJsonBtn.addEventListener('click', () => {
+        const dataStr = JSON.stringify(currentProducts, null, 2);
+        const dataBlob = new Blob([dataStr], { type: 'application/json' });
+        const url = URL.createObjectURL(dataBlob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `producthunt_products_${new Date().toISOString().split('T')[0]}.json`;
+        link.click();
+        URL.revokeObjectURL(url);
+    });
+
+    // ✅ Download Markdown
+    downloadMdBtn.addEventListener('click', () => {
+        const markdown = generateMarkdown(currentProducts);
+        const dataBlob = new Blob([markdown], { type: 'text/markdown' });
+        const url = URL.createObjectURL(dataBlob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `producthunt_products_${new Date().toISOString().split('T')[0]}.md`;
+        link.click();
+        URL.revokeObjectURL(url);
+    });
+
+    function generateMarkdown(products) {
+        let md = `# Product Hunt Results\n\n`;
+        md += `**Date:** ${new Date().toLocaleDateString()}\n`;
+        md += `**Total Products:** ${products.length}\n\n`;
+        md += `---\n\n`;
+
+        products.forEach((product, index) => {
+            md += `## ${index + 1}. ${product.name}\n\n`;
+            md += `**URL:** [${product.url}](${product.url})\n\n`;
+            if (product.tagline) md += `**Tagline:** ${product.tagline}\n\n`;
+            if (product.description) md += `**Description:** ${product.description}\n\n`;
+        });
+
+        return md + `\n*Generated by Product Hunt Crawler*\n`;
+    }
+
+    function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+</script>
+
 </body>
 </html>
