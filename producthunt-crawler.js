@@ -6,16 +6,14 @@ import fetch from "node-fetch";
  * @param {string|null} topic - Optional topic filter (ex: "Artificial Intelligence")
  */
 export async function crawlProductHunt(limit = 10, topic = null) {
-  // Normalize topic to match Product Hunt's slugs
-  const topicSlug = topic
-    ? topic.toLowerCase().replace(/&/g, "and").replace(/\s+/g, "-")
-    : null;
+  // Normalize topic
+  const topicName = topic ? topic.trim() : null;
 
   // Build query
-  const query = topicSlug
+  const query = topicName
     ? `
       query {
-        topic(name: "${topic}") {
+        topic(name: "${topicName}") {
           name
           posts(first: ${limit}) {
             edges {
@@ -74,15 +72,14 @@ export async function crawlProductHunt(limit = 10, topic = null) {
   }
 
   const data = await response.json();
+  let posts = [];
 
-   let posts = [];
-
-  // ✅ Defensive checks to avoid “Cannot read properties of undefined”
-  if (topicSlug) {
+  // ✅ Defensive check — prevent "undefined topic" errors
+  if (topicName) {
     if (data?.data?.topic?.posts?.edges?.length) {
       posts = data.data.topic.posts.edges.map(({ node }) => node);
     } else {
-      console.log(`⚠️ No posts found for topic: ${topicSlug}`);
+      console.log(`⚠️ No posts found for topic: ${topicName}`);
       return [];
     }
   } else if (data?.data?.posts?.edges?.length) {
@@ -91,7 +88,6 @@ export async function crawlProductHunt(limit = 10, topic = null) {
     console.log("⚠️ No posts field returned by Product Hunt");
     return [];
   }
-
 
   // Format data for frontend
   const formatted = posts.map((node) => ({
@@ -106,9 +102,7 @@ export async function crawlProductHunt(limit = 10, topic = null) {
     launchDate: node.createdAt,
   }));
 
-  console.log(
-    `✅ Found ${formatted.length} posts for topic: ${topicSlug || "Trending"}`
-  );
+  console.log(`✅ Found ${formatted.length} posts for topic: ${topicName || "Trending"}`);
 
   return formatted;
 }
