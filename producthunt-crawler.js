@@ -14,11 +14,11 @@ export async function crawlProductHunt(limit = 10, topic = null) {
     ? topic.toLowerCase().replace(/&/g, "and").replace(/\s+/g, "-")
     : null;
 
-  // Build GraphQL query
+  // ✅ FIX: use topicSlug instead of undefined topicName
   const query = topicSlug
     ? `
       query {
-        topic(slug: "${topicName}") {
+        topic(slug: "${topicSlug}") {
           name
           posts(first: ${limit}) {
             edges {
