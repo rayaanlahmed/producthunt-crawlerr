@@ -13,7 +13,7 @@ export async function crawlProductHunt(limit = 10, topic = null) {
   const query = topicName
     ? `
       query {
-        topic(name: "${topicName}") {
+        topic(slug: "${topicName}") {
           name
           posts(first: ${limit}) {
             edges {
