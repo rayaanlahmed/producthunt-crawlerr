@@ -15,7 +15,7 @@ export async function crawlProductHunt(limit = 10, topic = null) {
   const query = topicSlug
     ? `
       query {
-        topic(slug: "${topicSlug}") {
+        topic(name: "${topic}") {
           name
           posts(first: ${limit}) {
             edges {
