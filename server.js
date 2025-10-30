@@ -13,48 +13,38 @@ const PORT = 3000;
 app.use(express.json());
 app.use(express.static('public'));
 
-// API endpoint for crawling Product Hunt
 app.post('/api/crawl', async (req, res) => {
     try {
-        // ✅ NEW: Capture categories (topics) and limit from frontend
         const { limit = 10, categories = [] } = req.body;
         const topic = categories.length > 0 ? categories[0] : null;
 
-        // Setup Server-Sent Events
+        console.log("🧠 Received crawl request for topic:", topic);
+        console.log("🔑 ProductHunt key loaded:", !!process.env.PRODUCTHUNT_API_KEY);
+
         res.setHeader('Content-Type', 'text/event-stream');
         res.setHeader('Cache-Control', 'no-cache');
         res.setHeader('Connection', 'keep-alive');
 
-        console.log(`🚀 Starting Product Hunt crawl... Topic: ${topic || "Trending"}`);
+        const products = await crawlProductHunt(limit, topic);
 
-        try {
-            // ✅ Pass topic to crawler
-            const products = await crawlProductHunt(limit, topic);
-
-            // Send data to frontend
-            res.write(`data: ${JSON.stringify({
-                type: 'complete',
-                success: true,
-                count: products.length,
-                products: products
-            })}\n\n`);
-            res.end();
-        } catch (error) {
-            console.error('❌ Error during Product Hunt crawl:', error);
-            res.write(`data: ${JSON.stringify({
-                type: 'error',
-                error: error.message
-            })}\n\n`);
-            res.end();
-        }
+        res.write(`data: ${JSON.stringify({
+            type: 'complete',
+            success: true,
+            count: products.length,
+            products
+        })}\n\n`);
+        res.end();
 
     } catch (error) {
-        console.error('Error in /api/crawl:', error);
-        res.status(500).json({
-            error: error.message || 'An error occurred while crawling Product Hunt'
-        });
+        console.error("❌ Error in /api/crawl:", error);
+        res.write(`data: ${JSON.stringify({
+            type: 'error',
+            error: error.message
+        })}\n\n`);
+        res.end();
     }
 });
+
 
 // Optional: direct endpoint to test Product Hunt data
 app.get('/api/producthunt', async (req, res) => {
