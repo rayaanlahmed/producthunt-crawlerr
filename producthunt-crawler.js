@@ -10,34 +10,13 @@ export async function crawlProductHunt(limit = 10, topic = null) {
   const topicSlug = topic ? topic.trim().toLowerCase().replace(/\s+/g, "-") : null;
 
   // Build query using `slug` instead of `name`
-  const query = topicSlug
-    ? `
-      query {
-        topic(slug: "${topicSlug}") {
-          name
-          posts(first: ${limit}) {
-            edges {
-              node {
-                name
-                tagline
-                votesCount
-                website
-                url
-                description
-                createdAt
-                thumbnail { url }
-                topics {
-                  edges { node { name slug } }
-                }
-              }
-            }
-          }
-        }
-      }
-    `
-    : `
-      query {
-        posts(order: RANKING, first: ${limit}) {
+ // Build query
+const query = topic
+  ? `
+    query {
+      topic(slug: "${topic.toLowerCase()}") {
+        name
+        posts(first: ${limit}) {
           edges {
             node {
               name
@@ -55,7 +34,30 @@ export async function crawlProductHunt(limit = 10, topic = null) {
           }
         }
       }
-    `;
+    }
+  `
+  : `
+    query {
+      posts(order: RANKING, first: ${limit}) {
+        edges {
+          node {
+            name
+            tagline
+            votesCount
+            website
+            url
+            description
+            createdAt
+            thumbnail { url }
+            topics {
+              edges { node { name slug } }
+            }
+          }
+        }
+      }
+    }
+  `;
+
 
   // Fetch data from Product Hunt API
   const response = await fetch("https://api.producthunt.com/v2/api/graphql", {
