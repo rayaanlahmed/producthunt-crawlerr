@@ -3,17 +3,17 @@ import fetch from "node-fetch";
 /**
  * Crawl Product Hunt for trending products, optionally by topic
  * @param {number} limit - Number of posts to fetch
- * @param {string|null} topic - Optional topic filter (ex: "Artificial Intelligence")
+ * @param {string|null} topic - Optional topic filter (ex: "ai")
  */
 export async function crawlProductHunt(limit = 10, topic = null) {
-  // Normalize topic
-  const topicName = topic ? topic.trim() : null;
+  // ✅ Use slug instead of name (Product Hunt requires slug format)
+  const topicSlug = topic ? topic.trim().toLowerCase().replace(/\s+/g, "-") : null;
 
-  // Build query
-  const query = topicName
+  // Build query using `slug` instead of `name`
+  const query = topicSlug
     ? `
       query {
-        topic(slug: "${topicName}") {
+        topic(slug: "${topicSlug}") {
           name
           posts(first: ${limit}) {
             edges {
@@ -74,12 +74,12 @@ export async function crawlProductHunt(limit = 10, topic = null) {
   const data = await response.json();
   let posts = [];
 
-  // ✅ Defensive check — prevent "undefined topic" errors
-  if (topicName) {
+  // ✅ Defensive check
+  if (topicSlug) {
     if (data?.data?.topic?.posts?.edges?.length) {
       posts = data.data.topic.posts.edges.map(({ node }) => node);
     } else {
-      console.log(`⚠️ No posts found for topic: ${topicName}`);
+      console.log(`⚠️ No posts found for topic: ${topicSlug}`);
       return [];
     }
   } else if (data?.data?.posts?.edges?.length) {
@@ -102,14 +102,13 @@ export async function crawlProductHunt(limit = 10, topic = null) {
     launchDate: node.createdAt,
   }));
 
-  console.log(`✅ Found ${formatted.length} posts for topic: ${topicName || "Trending"}`);
-
+  console.log(`✅ Found ${formatted.length} posts for topic: ${topicSlug || "Trending"}`);
   return formatted;
 }
 
-// Optional: test manually
+// Optional manual test
 if (import.meta.url === `file://${process.argv[1]}`) {
-  crawlProductHunt(10, "Artificial Intelligence")
+  crawlProductHunt(10, "ai")
     .then((data) => console.log(JSON.stringify(data, null, 2)))
     .catch((err) => console.error(err));
 }
