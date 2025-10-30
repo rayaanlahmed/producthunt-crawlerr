@@ -63,6 +63,8 @@ app.get('/', (req, res) => {
 });
 
 // Start server
+console.log("✅ Product Hunt Key:", process.env.PRODUCTHUNT_API_KEY ? "Loaded ✅" : "❌ Missing!");
+
 app.listen(PORT, () => {
     console.log(`
 ╔═══════════════════════════════════════════════╗
