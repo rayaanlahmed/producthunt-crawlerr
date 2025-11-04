@@ -1,3 +1,5 @@
+import dotenv from 'dotenv';
+dotenv.config();
 import express from 'express';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -16,7 +18,9 @@ app.use(express.static('public'));
 // API endpoint for crawling Product Hunt
 app.post('/api/crawl', async (req, res) => {
     try {
-        const { limit = 10, categories } = req.body;
+        const { maxPages = 10, categories } = req.body;
+const limit = maxPages;
+
         const topic = Array.isArray(categories) && categories.length > 0 ? categories[0] : null;
 
         // Setup Server-Sent Events
