@@ -13,7 +13,7 @@ export async function crawlProductHunt(limit = 10, topic = null) {
     ? topic.toLowerCase().replace(/&/g, "and").replace(/\s+/g, "-")
     : null;
 
-  // ✅ Updated query (no deprecated topic.posts or filters)
+  // ✅ General query (Product Hunt removed topic.posts and filters)
   const query = `
     query {
       posts(order: RANKING, first: ${limit}) {
@@ -26,10 +26,11 @@ export async function crawlProductHunt(limit = 10, topic = null) {
             url
             description
             createdAt
+            reviewsRating
+            reviewsCount
+            makers { name username profileImage }
             thumbnail { url }
-            topics {
-              edges { node { name slug } }
-            }
+            topics { edges { node { name slug } } }
           }
         }
       }
@@ -59,19 +60,32 @@ export async function crawlProductHunt(limit = 10, topic = null) {
 
   const allPosts = data?.data?.posts?.edges?.map(({ node }) => node) || [];
 
-  // ✅ Client-side topic filtering since API no longer supports filters
-  const posts = topicSlug
+  // ✅ Fuzzy topic matching (for cases like "wearables" vs "smart-wearables")
+  let posts = topicSlug
     ? allPosts.filter(p =>
         p.topics.edges.some(t =>
-          t.node.slug.toLowerCase() === topicSlug.toLowerCase()
+          t.node.slug.toLowerCase().includes(topicSlug)
         )
       )
     : allPosts;
+
+  // ✅ Fallback: if no posts match, show general trending instead
+  if (topicSlug && posts.length === 0) {
+    console.warn(`⚠️ No products found for topic "${topicSlug}". Showing trending products instead.`);
+    posts = allPosts;
+  }
 
   const formatted = posts.map((node) => ({
     name: node.name,
     tagline: node.tagline,
     votes: node.votesCount,
+    rating: node.reviewsRating || "N/A",
+    reviewsCount: node.reviewsCount || 0,
+    founders:
+      node.makers?.map(
+        (m) =>
+          `<a href="https://www.producthunt.com/@${m.username}" target="_blank">${m.name}</a>`
+      ).join(", ") || "Unknown",
     url: node.website,
     producthunt_url: node.url,
     topics: node.topics.edges.map((t) => t.node.name).join(", "),
