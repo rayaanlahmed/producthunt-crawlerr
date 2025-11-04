@@ -77,6 +77,11 @@ export async function crawlProductHunt(limit = 10, topic = null) {
   }
 
   const data = await response.json();
+  console.log("🧩 Product Hunt Raw Response:", JSON.stringify(data, null, 2));
+if (data.errors) {
+  console.error("🚨 API Error:", data.errors);
+}
+
   let posts = [];
 
   // Handle both topic and non-topic cases safely
