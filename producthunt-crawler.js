@@ -15,31 +15,29 @@ export async function crawlProductHunt(limit = 10, topic = null) {
     : null;
 
   // ✅ FIX: use topicSlug instead of undefined topicName
-  const query = topicSlug
-    ? `
+const query = topicSlug
+  ? `
       query {
-        topic(slug: "${topicSlug}") {
-          name
-          posts(first: ${limit}) {
-            edges {
-              node {
-                name
-                tagline
-                votesCount
-                website
-                url
-                description
-                createdAt
-                thumbnail { url }
-                topics {
-                  edges { node { name slug } }
-                }
+        posts(first: ${limit}, order: RANKING, filters: { topic: "${topicSlug}" }) {
+          edges {
+            node {
+              name
+              tagline
+              votesCount
+              website
+              url
+              description
+              createdAt
+              thumbnail { url }
+              topics {
+                edges { node { name slug } }
               }
             }
           }
         }
       }
     `
+
     : `
       query {
         posts(order: RANKING, first: ${limit}) {
