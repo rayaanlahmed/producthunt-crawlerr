@@ -9,58 +9,33 @@ export async function crawlProductHunt(limit = 10, topic = null) {
   console.log("🧠 Starting crawl for topic:", topic);
   console.log("🔑 Using API key:", !!process.env.PRODUCTHUNT_API_KEY);
 
-  // Normalize topic to match Product Hunt’s actual slugs
   const topicSlug = topic
     ? topic.toLowerCase().replace(/&/g, "and").replace(/\s+/g, "-")
     : null;
 
-  // ✅ FIX: use topicSlug instead of undefined topicName
-const query = topicSlug
-  ? `
-      query {
-        posts(first: ${limit}, order: RANKING, filters: { topic: "${topicSlug}" }) {
-          edges {
-            node {
-              name
-              tagline
-              votesCount
-              website
-              url
-              description
-              createdAt
-              thumbnail { url }
-              topics {
-                edges { node { name slug } }
-              }
+  // ✅ Updated query (no deprecated topic.posts or filters)
+  const query = `
+    query {
+      posts(order: RANKING, first: ${limit}) {
+        edges {
+          node {
+            name
+            tagline
+            votesCount
+            website
+            url
+            description
+            createdAt
+            thumbnail { url }
+            topics {
+              edges { node { name slug } }
             }
           }
         }
       }
-    `
+    }
+  `;
 
-    : `
-      query {
-        posts(order: RANKING, first: ${limit}) {
-          edges {
-            node {
-              name
-              tagline
-              votesCount
-              website
-              url
-              description
-              createdAt
-              thumbnail { url }
-              topics {
-                edges { node { name slug } }
-              }
-            }
-          }
-        }
-      }
-    `;
-
-  // Call Product Hunt GraphQL API
   const response = await fetch("https://api.producthunt.com/v2/api/graphql", {
     method: "POST",
     headers: {
@@ -76,28 +51,23 @@ const query = topicSlug
 
   const data = await response.json();
   console.log("🧩 Product Hunt Raw Response:", JSON.stringify(data, null, 2));
-if (data.errors) {
-  console.error("🚨 API Error:", data.errors);
-}
 
-  let posts = [];
-
-  // Handle both topic and non-topic cases safely
-  if (topicSlug) {
-    if (data?.data?.topic?.posts?.edges?.length) {
-      posts = data.data.topic.posts.edges.map(({ node }) => node);
-    } else {
-      console.log(`⚠️ No posts found for topic: ${topicSlug}`);
-      return [];
-    }
-  } else if (data?.data?.posts?.edges?.length) {
-    posts = data.data.posts.edges.map(({ node }) => node);
-  } else {
-    console.log("⚠️ No posts field returned by Product Hunt");
+  if (data.errors) {
+    console.error("🚨 API Error:", data.errors);
     return [];
   }
 
-  // Format results for frontend
+  const allPosts = data?.data?.posts?.edges?.map(({ node }) => node) || [];
+
+  // ✅ Client-side topic filtering since API no longer supports filters
+  const posts = topicSlug
+    ? allPosts.filter(p =>
+        p.topics.edges.some(t =>
+          t.node.slug.toLowerCase() === topicSlug.toLowerCase()
+        )
+      )
+    : allPosts;
+
   const formatted = posts.map((node) => ({
     name: node.name,
     tagline: node.tagline,
@@ -120,3 +90,4 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     .then((data) => console.log(JSON.stringify(data, null, 2)))
     .catch((err) => console.error(err));
 }
+
